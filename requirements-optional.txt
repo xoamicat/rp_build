@@ -1,0 +1,2 @@
+# Only needed for live test-mode calls and the LLM backends you actually use.
+razorpay>=1.4

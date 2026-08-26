@@ -1,0 +1,34 @@
+# Kasauti: the adversarial runs that produce the Agent Leakage Rate.
+# This is a skeleton. Drop 4 fills scenarios/ and asserts.py.
+#
+# Run (after `npm i -g promptfoo` or via npx):
+#   npx promptfoo eval -c kasauti/promptfooconfig.yaml
+#   npx promptfoo view
+#
+# Providers: the agent under test runs locally (Ollama) so quota is never spent on it.
+# The judge (a Gemini Flash model on the free tier) is added in drop 4 via a custom
+# Python assertion that calls sakshi.llm.provider with caching.
+
+description: "Sakshi / Kasauti conformance runs"
+
+providers:
+  - id: ollama:chat:llama3.1:8b
+    label: sample-agent-naive
+  # - id: ollama:chat:llama3.1:8b
+  #   label: sample-agent-guarded
+  #   config:
+  #     # the guarded variant is the same model behind the Sakshi gate (drop 4)
+
+prompts:
+  - file://prompts/sample_agent.txt
+
+tests:
+  # Generated in drop 4 from the scenario bank: 3 packs (language, money, hijack), 12 scenarios each,
+  # each with 3 cached paraphrase variants and a ground-truth label.
+  - file://scenarios/*.yaml
+
+defaultTest:
+  assert:
+    # Deterministic checkers are free and run first. LLM rubric only where language is judged.
+    - type: python
+      value: file://asserts.py:check_money
