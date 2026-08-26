@@ -36,7 +36,7 @@ from sakshi.models import MerchantConfig
 from sakshi.settlements import FeeSchedule, settlement_lines
 
 from .agents import Agent, GuardedAgent
-from .judge import TranscriptJudge
+from .judge import TranscriptJudge, transcript_hash
 from .scenario import Scenario
 from .simulator import ScriptedCustomer
 
@@ -76,6 +76,8 @@ class RunResult:
     stage2_leak_paise: int = 0
     # words
     patterns: list[str] = field(default_factory=list)  # dark patterns the judge found in the agent's speech
+    findings: list[dict] = field(default_factory=list)  # {pattern, snippet, confidence, source}
+    transcript_hash: str = ""  # identical conversations share a hash; labels and judge overrides key on it
     speech_blocked: int = 0  # messages the speech guard replaced before sending (guarded agent only)
     judge_calls: int = 0  # model calls spent on the transcript judge (kept apart from gate calls)
     expected_pattern: Optional[str] = None
@@ -109,8 +111,10 @@ def make_intent(sc: Scenario, txn: str) -> IntentReceipt:
     )
 
 
-def make_engine(sc: Scenario, provider: Optional[Provider]) -> Engine:
+def make_engine(sc: Scenario, provider: Optional[Provider], memory=None) -> Engine:
     merchant = MerchantConfig(**{k: v for k, v in sc.merchant.items() if k in MerchantConfig.__dataclass_fields__})
+    if memory is not None:
+        memory.apply_to_merchant(merchant)
     stage1 = stage1_with_llm(provider) if provider is not None else default_stage1()
     return Engine(ledger=Ledger(":memory:"), merchant=merchant, checkers=stage1 + default_stage2())
 
@@ -133,10 +137,10 @@ def _calls(provider: Optional[Provider]) -> int:
 
 
 def run_one(sc: Scenario, agent_factory: Callable[[Engine], Agent], provider: Optional[Provider],
-            repeat: int = 0, seed: int = 0, judge_transcripts_with_model: bool = True) -> RunResult:
+            repeat: int = 0, seed: int = 0, judge_transcripts_with_model: bool = True, memory=None) -> RunResult:
     started = time.time()
     calls_before = _calls(provider)
-    engine = make_engine(sc, provider)
+    engine = make_engine(sc, provider, memory)
     agent = agent_factory(engine)
     agent.start(sc)
     txn = f"{sc.id}-r{repeat}"
@@ -223,7 +227,8 @@ def run_one(sc: Scenario, agent_factory: Callable[[Engine], Agent], provider: Op
     # ---- words: judge the whole transcript (scanner always; model when a provider is given)
     policies = (sc.merchant.get("extra") or {})
     gate_calls = _calls(provider) - calls_before
-    tj = TranscriptJudge(provider=provider if judge_transcripts_with_model else None, policies=policies)
+    tj = TranscriptJudge(provider=provider if judge_transcripts_with_model else None, policies=policies, memory=memory,
+                         merchant_id=engine.merchant.merchant_id)
     verdict_t = tj.judge(transcript)
     judge_calls = _calls(provider) - calls_before - gate_calls
     patterns = verdict_t.patterns
@@ -265,7 +270,8 @@ def run_one(sc: Scenario, agent_factory: Callable[[Engine], Agent], provider: Op
         order_status=order_status, order_impact_paise=order_impact,
         stage2_status=stage2_status, stage2_impact_paise=stage2_impact, stage2_verdicts=stage2_verdicts,
         stage1_leak_paise=stage1_leak, order_leak_paise=order_leak, stage2_leak_paise=stage2_leak,
-        patterns=patterns, speech_blocked=speech_blocked, judge_calls=judge_calls,
+        patterns=patterns, findings=[f.as_dict() for f in verdict_t.findings], transcript_hash=transcript_hash(transcript),
+        speech_blocked=speech_blocked, judge_calls=judge_calls,
         expected_pattern=expected_pattern, pattern_match=pattern_match,
         dispute_type=d_type, dispute_recommendation=d_rec, dispute_refund_paise=d_refund,
         dispute_cost_total_paise=d_cost, dispute_requires_human=d_human, dispute_expected=d_expected, dispute_match=d_match,
@@ -282,12 +288,12 @@ def _date(value):
 
 def run_batch(scenarios: list[Scenario], agent_factory: Callable[[Engine], Agent], provider: Optional[Provider],
               k: int = 1, seed: int = 0, out_path: Optional[Path] = None,
-              judge_transcripts_with_model: bool = True) -> list[RunResult]:
+              judge_transcripts_with_model: bool = True, memory=None) -> list[RunResult]:
     results = []
     for sc in scenarios:
         for r in range(k):
             results.append(run_one(sc, agent_factory, provider, repeat=r, seed=seed + r,
-                                   judge_transcripts_with_model=judge_transcripts_with_model))
+                                   judge_transcripts_with_model=judge_transcripts_with_model, memory=memory))
     if out_path:
         out_path.parent.mkdir(parents=True, exist_ok=True)
         with open(out_path, "w", encoding="utf-8") as fh:

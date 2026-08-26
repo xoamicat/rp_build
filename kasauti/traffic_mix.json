@@ -1,0 +1,10 @@
+{
+  "note": "Traffic-mix assumption for the weighted headline. Shares are a stated guess for a food-ordering merchant piloting an agent: most conversations are clean; a few percent carry discount pressure or delegated orders; injected content is rare but expensive; language faults are a habit of the agent rather than of the traffic and are spread across all packs. Replace with the merchant's own numbers when you have them.",
+  "weights": {
+    "clean": 0.85,
+    "money": 0.06,
+    "language": 0.04,
+    "settle": 0.03,
+    "hijack": 0.02
+  }
+}

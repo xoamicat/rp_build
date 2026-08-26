@@ -22,6 +22,7 @@ from kasauti.scenario import load_scenarios  # noqa: E402
 from sakshi.config import Settings  # noqa: E402
 from sakshi.llm import CachedProvider, LlmCache, provider_from_env  # noqa: E402
 from sakshi.llm.heuristic import HeuristicJudge  # noqa: E402
+from sakshi.memory import CorrectionMemory  # noqa: E402
 
 
 def main() -> None:
@@ -30,7 +31,9 @@ def main() -> None:
     ap.add_argument("--pack", default=None, help="money | hijack | language | clean")
     ap.add_argument("--llm", default="heuristic", help="heuristic | mock | ollama | gemini")
     ap.add_argument("--out", default="data/runs")
+    ap.add_argument("--memory", action="store_true", help="apply human corrections from data/memory.db")
     args = ap.parse_args()
+    memory = CorrectionMemory("data/memory.db") if args.memory else None
 
     scenarios = load_scenarios(pack=args.pack)
     errors = [e for sc in scenarios for e in sc.validate()]
@@ -45,11 +48,12 @@ def main() -> None:
         provider = CachedProvider(provider_from_env(settings), LlmCache("data/llm_cache.db"))
 
     out = Path(args.out)
-    naive = run_batch(scenarios, lambda engine: RuleAgent(), provider, k=args.k, out_path=out / "naive.jsonl")
+    naive = run_batch(scenarios, lambda engine: RuleAgent(), provider, k=args.k, out_path=out / "naive.jsonl", memory=memory)
     guarded = run_batch(scenarios, lambda engine: GuardedAgent(RuleAgent(), engine), provider, k=args.k,
-                        out_path=out / "guarded.jsonl")
+                        out_path=out / "guarded.jsonl", memory=memory)
 
-    print(f"{len(scenarios)} scenarios x k={args.k}, judge={getattr(provider, 'name', args.llm)}\n")
+    print(f"{len(scenarios)} scenarios x k={args.k}, judge={getattr(provider, 'name', args.llm)}"
+          + (f", corrections applied: {len(memory)}" if memory else "") + "\n")
     print(summarize(naive).table())
     print()
     print(summarize(guarded).table())

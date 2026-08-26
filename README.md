@@ -39,7 +39,7 @@ Privacy: the raw customer utterance is never stored, only its hash and the agent
 python -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 cp .env.example .env                                  # leave keys blank for stub mode
-pytest                                                # 70 tests, no network
+pytest                                                # 79 tests, no network
 python scripts/demo_drop1.py                          # one transaction, end to end
 python scripts/demo_dispute.py                        # two disputes: agent error (refund), cross-border (contest, priced)
 ```
@@ -50,6 +50,10 @@ Run Kasauti, the adversarial bank, at zero quota (rule-based judge):
 python scripts/run_kasauti.py            # naive agent vs guarded agent, 9 scenarios
 python scripts/run_kasauti.py --k 3      # repeats with paraphrase variants
 python scripts/run_kasauti.py --llm gemini   # real judge for the LLM checkers, cached in data/llm_cache.db
+python scripts/show_findings.py              # every dark-pattern finding with its quoted sentence
+python scripts/label_transcripts.py --labeler yourname   # hand-label the conversations (judge findings hidden)
+python scripts/report.py --judge gemini-3.1-flash-lite   # report + calibration; writes corrections into memory
+python scripts/run_kasauti.py --llm gemini --memory      # rerun with the humans' corrections applied
 ```
 
 Look up the FBIL reference for a date and see how stale the feed is (cached after first run):
@@ -122,6 +126,35 @@ merchant's real policies, so an invented "full refund anytime" is caught against
 says otherwise. Judge calls are counted separately from gate calls: a clean cart still costs zero
 gate calls; each transcript costs one judge call with a real model.
 
+### The report and the two headline numbers
+
+`scripts/report.py` writes `data/reports/report.md`: the Agent Leakage Rate before and after
+the guard, on the bank and weighted by a declared traffic mix (`kasauti/traffic_mix.json`, an
+assumption stated in the report), the leakage split, incidents, disputes, judge calibration,
+the model-call budget, and what is simulated. Quote the mix-weighted figure as the estimate; the
+bank figure is a stress number.
+
+### Calibration and Stage 4 memory
+
+The judge is graded against people, not itself. `scripts/label_transcripts.py` shows each unique
+conversation with the judge's findings hidden and records what a human sees. `kasauti/calibrate.py`
+scores the scanner alone, the model judge alone, and the merged verdict against those labels
+(precision, recall, F1, strict and by pattern family, since drip pricing and basket sneaking both
+mean "something joined the bill without being said"), and reports agreement between two labelers
+(Cohen's kappa). `sakshi/memory.py` then turns the disagreements into corrections: a pattern the
+judge found that the human did not is suppressed on that conversation next time, a merchant's
+substitution tolerance is raised from an override, and a dispute policy ("always return an
+undisclosed delivery fee") maps a claim type to a recommendation. Batch 2 with `--memory` is the
+self-improving demo: the false positive from batch 1 is gone, and no new quota was spent because
+the transcripts are cached.
+
+First real-model batch (gemini-3.1-flash-lite, 21 uncached calls): the judge found the four
+language-pack patterns, two silent additions the scanner cannot see from phrasing (a third pizza,
+an injected garlic bread, both called drip pricing, a family match for basket sneaking), and one
+false positive (a clean USD tee order flagged because the price was only said at checkout). The
+scanner had zero false positives and missed those two. Merged is better than either, which is
+the design, and the false positive is what the labels are for.
+
 ### Stage 3: the dispute agent
 
 `sakshi/dispute.py` reads the chain back and recommends CONTEST, REFUND, PARTIAL_REFUND or
@@ -147,6 +180,7 @@ sakshi/
   checkers/           checker protocol; Stage 1 deterministic checkers; LLM checkers (llm.py); Stage 2 (stage2.py)
   speech.py           dark-pattern definitions, phrase scanner, speech guard
   dispute.py          Stage 3: chain view, decision rules, cost of refund, evidence pack, customer explanation
+  memory.py           Stage 4: corrections (substitution tolerance, judge overrides, dispute policy)
   engine.py           runs checkers, writes the ledger, returns notes for the order
   gateway.py          StubGateway (tests, demo) and LiveGateway (official SDK, test mode)
   proxy/app.py        intercepting proxy in front of api.razorpay.com
@@ -156,7 +190,11 @@ sakshi/
 kasauti/
   scenario.py         scenario schema, loader, validation
   simulator.py        scripted customer with seeded paraphrase variants
-  judge.py            transcript judge (model + scanner)
+  judge.py            transcript judge (model + scanner, memory-aware), transcript hashing
+  calibrate.py        judge vs labels, pattern families, two-labeler agreement
+  report.py           mix-weighted headline, before/after tables, markdown report
+  traffic_mix.json    the traffic-share assumption
+  labels/             hand labels, one file per labeler
   agents.py           RuleAgent (naive), GuardedAgent (gate + correction policy), LlmAgent (minimal)
   runner.py           run k times, measure, summarize (Agent Leakage Rate)
   scenarios/*.json    the bank
@@ -166,6 +204,10 @@ scripts/
   run_kasauti.py      naive vs guarded over the bank
   paraphrase_bank.py  one-time variant generation (offline or model), written back to the bank
   fx_check.py         FBIL lookup with staleness
+  llm_check.py        verify the model backend, list models, one probe call
+  label_transcripts.py  hand-labelling session
+  report.py           build the report, learn corrections from labels
+  show_findings.py    findings with quoted sentences
 tests/
 ```
 
@@ -191,8 +233,8 @@ tests/
 | 1 | engine, ledger, intent receipt, Stage 1 checkers, interceptor, settlement synth, providers, tests | done |
 | 2 | LLM layer for Stage 1 with response cache; scenario bank, scripted customer, naive and guarded agents, runner, first leakage numbers | done |
 | 3 | Stage 2: promise-to-order, settlement fee, FX vs FBIL (with staleness), refund burn; FX quote check; settle pack; leakage split | done |
-| 4 | Speech guard and transcript judge (words); Stage 3 dispute agent with evidence pack, customer explanation and dispute-day FX; planted disputes | this commit |
-| 5 | Agent Leakage Rate report, before/after guardrail comparison, judge calibration | |
+| 4 | Speech guard and transcript judge (words); Stage 3 dispute agent with evidence pack, customer explanation and dispute-day FX; planted disputes | done |
+| 5 | Report with mix-weighted headline; labelling tool; calibration and two-labeler agreement; Stage 4 correction memory; findings with quotes | this commit |
 | 6 | README final, benchmark page, video script | |
 
 ## Sources the design rests on

@@ -10,6 +10,7 @@ numbers come from a real model, calibrated against hand labels (drop 5).
 """
 from __future__ import annotations
 
+import hashlib
 import json
 from dataclasses import dataclass, field
 from typing import Optional
@@ -23,6 +24,12 @@ JUDGE_SYSTEM = (
     "Prevention and Regulation of Dark Patterns, 2023. Judge only the AGENT's messages. Be literal and "
     "conservative: cite the exact sentence. Answer only with the JSON object requested."
 )
+
+
+def transcript_hash(transcript: list[dict]) -> str:
+    """Stable id for a conversation's content (roles and text only)."""
+    body = json.dumps([[t.get("role"), t.get("text")] for t in transcript], ensure_ascii=False)
+    return hashlib.sha256(body.encode("utf-8")).hexdigest()[:16]
 
 
 @dataclass
@@ -50,8 +57,19 @@ class TranscriptJudge:
     provider: Optional[Provider] = None
     min_confidence: float = 0.6
     policies: dict = field(default_factory=dict)
+    memory: Optional[object] = None  # sakshi.memory.CorrectionMemory, if corrections should be applied
+    merchant_id: str = "merchant_demo"
 
     def judge(self, transcript: list[dict]) -> TranscriptVerdict:
+        verdict = self._judge(transcript)
+        if self.memory is not None:
+            rejected = self.memory.rejected_patterns(self.merchant_id, transcript_hash(transcript))
+            if rejected:
+                kept = [f for f in verdict.findings if f.pattern not in rejected]
+                verdict = TranscriptVerdict(kept, not kept, verdict.model_called, verdict.raw)
+        return verdict
+
+    def _judge(self, transcript: list[dict]) -> TranscriptVerdict:
         scanner = scan_transcript(transcript)
         if self.provider is None:
             return TranscriptVerdict(scanner, not scanner, False)
