@@ -80,9 +80,14 @@ class RateLimiter:
             self._next = now + self.interval
 
 
+class GeminiError(RuntimeError):
+    pass
+
+
 class GeminiProvider:
     name = "gemini"
     endpoint = "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
+    models_endpoint = "https://generativelanguage.googleapis.com/v1beta/models"
 
     def __init__(self, api_key: str, model: str = "gemini-2.5-flash-lite", rpm: int = 10,
                  max_retries: int = 5, timeout: float = 60.0):
@@ -92,6 +97,18 @@ class GeminiProvider:
         self.limiter = RateLimiter(rpm)
         self.max_retries = max_retries
         self.calls = 0
+
+    def list_models(self) -> list[dict]:
+        """Models this key can call with generateContent, as {name, display, methods}."""
+        r = httpx.get(self.models_endpoint, params={"key": self.api_key, "pageSize": 200}, timeout=self.timeout)
+        r.raise_for_status()
+        out = []
+        for m in r.json().get("models", []):
+            methods = m.get("supportedGenerationMethods", [])
+            if "generateContent" in methods:
+                out.append({"name": m.get("name", "").replace("models/", ""), "display": m.get("displayName"),
+                            "methods": methods})
+        return out
 
     def complete(self, prompt: str, system: Optional[str] = None, json_mode: bool = False) -> str:
         body: dict = {
@@ -110,11 +127,16 @@ class GeminiProvider:
             self.calls += 1
             if r.status_code == 429 or r.status_code >= 500:
                 if attempt == self.max_retries:
-                    r.raise_for_status()
+                    raise GeminiError(f"Gemini {r.status_code} after {attempt} retries: {r.text[:300]}")
                 retry_after = r.headers.get("retry-after")
                 time.sleep(float(retry_after) if retry_after else delay)
                 delay = min(delay * 2, 60.0)
                 continue
+            if r.status_code == 404:
+                raise GeminiError(f"model '{self.model}' not found for this key. Run: python scripts/llm_check.py "
+                                  f"to list the models you can use, then set GEMINI_MODEL in .env")
+            if r.status_code in (400, 401, 403):
+                raise GeminiError(f"Gemini {r.status_code}: {r.text[:300]}")
             r.raise_for_status()
             data = r.json()
             try:
