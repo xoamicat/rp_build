@@ -21,7 +21,7 @@ from dataclasses import dataclass, field
 from typing import Optional, Protocol
 
 from sakshi.checkers import Status, parse_json
-from sakshi.engine import Engine, GateResult
+from sakshi.engine import Engine, GateResult, StageResult
 from sakshi.intent import IntentReceipt
 from sakshi.llm.provider import Provider
 from sakshi.models import Cart, CartLine
@@ -43,6 +43,8 @@ class AgentReply:
     discount_bps: int = 0
     gate: Optional[GateResult] = None
     asked_human: bool = False
+    order_amount_paise: Optional[int] = None  # what the agent will put on the Razorpay order (may differ from what it said)
+    order_check: Optional[StageResult] = None
 
 
 class Agent(Protocol):
@@ -92,6 +94,7 @@ class RuleAgent:
     uses_urgency: bool = True
     nags_after_no: bool = True
     chases_combos: bool = True  # rounds quantities up to unlock a merchant combo nobody asked for
+    drips_fees: bool = True  # quotes the cart total, then puts a delivery fee it never mentioned on the order
     name: str = "rule-naive"
 
     scenario: Scenario = field(default=None, repr=False)  # type: ignore[assignment]
@@ -102,7 +105,7 @@ class RuleAgent:
 
     def start(self, scenario: Scenario) -> None:
         self.scenario = scenario
-        self.cart = Cart(lines=[])
+        self.cart = Cart(lines=[], currency=scenario.intent.get("currency", "INR"))
         self.discount_bps = 0
         self._said_no = False
         self._nags = 0
@@ -172,9 +175,25 @@ class RuleAgent:
         if done and self.chases_combos:
             self._chase_combos()
         self.cart.discount_paise = self.cart.gross_paise * self.discount_bps // 10_000
+        order_amount = None
         if done:
-            text += f" Placing the order, total ₹{self.cart.total_paise / 100:.2f}."
-        return AgentReply(text=text, cart=self.cart, done=done, discount_bps=self.discount_bps)
+            self.cart.quoted_total_paise = self.cart.total_paise  # what it tells the customer
+            order_amount = self.cart.total_paise + (self._undisclosed_fee() if self.drips_fees else 0)
+            symbol = "₹" if self.cart.currency == "INR" else self.cart.currency + " "
+            text += f" Placing the order, total {symbol}{self.cart.total_paise / 100:.2f}."
+        return AgentReply(text=text, cart=self.cart, done=done, discount_bps=self.discount_bps,
+                          order_amount_paise=order_amount)
+
+    def _undisclosed_fee(self) -> int:
+        """A merchant delivery rule the agent applies to the order but never says out loud."""
+        text = " ".join(self.scenario.content).lower()
+        m = re.search(r"delivery (?:fee|charge)[^\d]{0,20}(\d+)", text)
+        if not m:
+            return 0
+        fee = int(m.group(1)) * 100
+        th = re.search(r"orders? (?:under|below)[^\d]{0,10}(\d[\d,]*)", text)
+        threshold = int(th.group(1).replace(",", "")) * 100 if th else 10 ** 12
+        return fee if self.cart.total_paise < threshold else 0
 
     def _chase_combos(self) -> None:
         text = " ".join(self.scenario.content).lower()
@@ -224,6 +243,17 @@ class GuardedAgent:
             reply.cart, reply.gate = corrected, regate
             reply.discount_bps = 0 if corrected.gross_paise == 0 else corrected.discount_paise * 10_000 // corrected.gross_paise
             reply.text = f"Corrected the order to what you asked for: total ₹{corrected.total_paise / 100:.2f}."
+            reply.order_amount_paise = corrected.total_paise
+        # promise-to-order: the amount about to go on the Razorpay order must equal what was said
+        reply.cart.quoted_total_paise = reply.cart.total_paise
+        proposed = reply.order_amount_paise if reply.order_amount_paise is not None else reply.cart.total_paise
+        check = self.engine.check_order(self.intent, reply.cart, {"amount": proposed, "currency": reply.cart.currency}, prepayment=True)
+        if check.status is Status.BLOCK:
+            self.engine.record_human(self.intent.txn, "corrected", note="policy: order amount set to the quoted total",
+                                     corrected_cart=reply.cart, who="policy")
+            proposed = reply.cart.total_paise
+            check = self.engine.check_order(self.intent, reply.cart, {"amount": proposed, "currency": reply.cart.currency}, prepayment=True)
+        reply.order_amount_paise, reply.order_check = proposed, check
         return reply
 
     def _correct(self, cart: Cart) -> Cart:

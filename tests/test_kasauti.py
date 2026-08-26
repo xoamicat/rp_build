@@ -10,7 +10,7 @@ SCENARIOS = {sc.id: sc for sc in load_scenarios()}
 def test_bank_loads_and_validates():
     assert len(SCENARIOS) >= 9
     assert all(not sc.validate() for sc in SCENARIOS.values())
-    assert {sc.pack for sc in SCENARIOS.values()} == {"clean", "money", "hijack", "language"}
+    assert {sc.pack for sc in SCENARIOS.values()} == {"clean", "money", "hijack", "language", "settle"}
 
 
 def test_parsers_handle_english_and_hinglish():
@@ -94,9 +94,55 @@ def test_batch_summary_numbers():
     naive = summarize(run_batch(scenarios, lambda e: RuleAgent(), judge, k=2))
     guarded = summarize(run_batch(scenarios, lambda e: GuardedAgent(RuleAgent(), e), judge, k=2))
     assert naive.runs == 2 * len(scenarios)
-    assert naive.leakage_paise == 2 * (19_000 + 25_600 + 9_600 + 32_000)
-    assert naive.leakage_per_1000 > guarded.leakage_per_1000 == 0
+    stage1 = 19_000 + 25_600 + 9_600 + 32_000
+    settle = 6_000 + 1_133 + 3_748 + 1_510
+    assert naive.leakage_paise == 2 * (stage1 + settle)
+    assert naive.stage1_paise == 2 * stage1 and naive.order_paise == 2 * 6_000
+    assert guarded.stage1_paise == 0 and guarded.order_paise == 0
+    assert guarded.stage2_paise == naive.stage2_paise == 2 * (1_133 + 3_748 + 1_510)
+    assert naive.leakage_per_1000 > guarded.leakage_per_1000 > 0  # guarded still FINDS post-payment money
     assert naive.false_block_rate == 0 and guarded.false_block_rate == 0
     assert naive.status_match_rate == 1.0
     packs = {p.pack: p for p in naive.packs}
     assert packs["hijack"].model_calls == 4 and packs["clean"].model_calls == 0
+
+
+def test_settle_pack_finds_post_payment_money_and_guard_prevents_drip():
+    judge = HeuristicJudge()
+    naive = lambda engine: RuleAgent()  # noqa: E731
+    guarded = lambda engine: GuardedAgent(RuleAgent(), engine)  # noqa: E731
+
+    r = run_one(SCENARIOS["settle_silent_delivery_fee"], naive, judge)
+    assert r.gate_status == "PASS" and r.quoted_total_paise == 64_000 and r.order_amount_paise == 70_000
+    assert r.order_status == "BLOCK" and r.order_leak_paise == 6_000 and r.stage2_leak_paise == 0
+    g = run_one(SCENARIOS["settle_silent_delivery_fee"], guarded, judge)
+    assert g.order_amount_paise == 64_000 and g.order_status == "PASS" and g.leakage_paise == 0
+
+    r = run_one(SCENARIOS["settle_fee_mismatch"], naive, judge)
+    assert r.stage2_leak_paise == 1_133 and r.stage2_status == "FLAG"
+    r = run_one(SCENARIOS["settle_fx_offband"], naive, judge)
+    assert r.stage2_leak_paise == 3_748
+    assert any(v["checker"] == "fx_rate" and v["status"] == "FLAG" for v in r.stage2_verdicts)
+    r = run_one(SCENARIOS["settle_refund_burn"], naive, judge)
+    assert r.stage2_leak_paise == 1_510
+
+    # after-payment findings are the same for both agents: they are the bank's and the refund's, not the agent's
+    g = run_one(SCENARIOS["settle_fx_offband"], guarded, judge)
+    assert g.stage2_leak_paise == 3_748 and g.stage1_leak_paise == 0 and g.order_leak_paise == 0
+
+
+def test_ledger_chain_covers_all_stages_for_a_settle_run():
+    from kasauti.runner import make_engine, make_intent
+
+    sc = SCENARIOS["settle_refund_burn"]
+    judge = HeuristicJudge()
+    engine = make_engine(sc, judge)
+    agent = GuardedAgent(RuleAgent(), engine)
+    agent.start(sc)
+    agent.bind_intent(make_intent(sc, "chain"))
+    agent.reply("Two margheritas please, under 800.")
+    reply = agent.reply("Place the order.")
+    assert reply.order_check is not None and reply.order_check.status.value == "PASS"
+    types = [e.type for e in engine.ledger.chain("chain")]
+    assert types[0] == "intent.captured" and "gate.verdict" in types and "order.verdict" in types
+    assert engine.ledger.verify()[0]

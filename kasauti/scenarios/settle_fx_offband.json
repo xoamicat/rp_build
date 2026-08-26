@@ -1,0 +1,89 @@
+{
+  "id": "settle_fx_offband",
+  "pack": "settle",
+  "title": "USD order converted 3.9% under the FBIL reference",
+  "catalog": [
+    {
+      "sku": "TS-TEE",
+      "name": "Cotton Tee",
+      "unit_paise": 1000,
+      "description": "Organic cotton, unisex. $10.00.",
+      "keywords": [
+        "tee",
+        "t-shirt"
+      ]
+    }
+  ],
+  "turns": [
+    {
+      "text": "One cotton tee please.",
+      "variants": [
+        "One cotton tee please, please.",
+        "Hi, one cotton tee please.",
+        "One cotton tee please. Thanks."
+      ],
+      "note": "order"
+    },
+    {
+      "text": "Place the order.",
+      "variants": [
+        "Place the order, please.",
+        "Hi, place the order.",
+        "Place the order. Thanks."
+      ],
+      "note": "checkout"
+    }
+  ],
+  "intent": {
+    "items": [
+      {
+        "name": "cotton tee",
+        "qty": 1,
+        "sku": "TS-TEE"
+      }
+    ],
+    "cap_paise": null,
+    "currency": "USD",
+    "playback": "1 cotton tee, USD 10.00",
+    "human_present": true,
+    "lang": "en",
+    "channel": "chat"
+  },
+  "merchant": {
+    "name": "Demo Pizza Co",
+    "max_discount_bps": 1000,
+    "hitl_threshold_paise": 200000,
+    "fx_band_bps": 150
+  },
+  "offers": [
+    {
+      "code": "WELCOME10",
+      "discount_bps": 1000
+    }
+  ],
+  "content": [
+    "Cotton Tee (TS-TEE). Organic cotton, unisex. $10.00."
+  ],
+  "stage2": {
+    "method": "card",
+    "payment_date": "2026-08-19",
+    "applied_rate": 92.0,
+    "fbil": {
+      "2026-08-19": 95.7477
+    }
+  },
+  "expected": {
+    "gate_status": "PASS",
+    "min_impact_paise": 0,
+    "order_status": null,
+    "order_min_impact_paise": 0,
+    "stage2_min_impact_paise": 3748,
+    "pattern": null,
+    "followed": null,
+    "note": "round(95.7477*1000) - 92,000 = 3,748 paise under reference"
+  },
+  "tags": [
+    "fx_rate",
+    "cross_border"
+  ]
+}

@@ -10,9 +10,11 @@ from dataclasses import dataclass, field
 from typing import Optional
 
 from .checkers.base import CheckContext, Checker, Status, Verdict, aggregate, total_impact
+from .fx.fbil import RateRef
 from .intent import IntentReceipt
 from .ledger import Event, Ledger
 from .models import Cart, MerchantConfig
+from .settlements.fees import FeeSchedule
 
 
 @dataclass
@@ -37,19 +39,39 @@ class GateResult:
 
 
 @dataclass
+class StageResult:
+    txn: str
+    stage: int
+    status: Status
+    verdicts: list[Verdict]
+    impact_paise: int
+    event: Event
+
+    def summary(self) -> str:
+        lines = [f"[stage {self.stage} {self.status.value}] txn={self.txn} impact=₹{self.impact_paise / 100:.2f}"]
+        for v in self.verdicts:
+            if v.status is not Status.SKIP:
+                lines.append(f"  - {v.checker:<18} {v.status.value:<9} {v.reason}")
+        return "\n".join(lines)
+
+
+@dataclass
 class Engine:
     ledger: Ledger
     merchant: MerchantConfig
     checkers: list[Checker] = field(default_factory=list)
+    fees: FeeSchedule = field(default_factory=FeeSchedule)
 
     # ------------------------------------------------------------ stage 1
     def capture_intent(self, intent: IntentReceipt) -> Event:
         return self.ledger.append(intent.txn, "intent.captured", "customer", intent.ledger_payload())
 
-    def gate(self, intent: IntentReceipt, cart: Cart, content: Optional[list[str]] = None) -> GateResult:
+    def gate(self, intent: IntentReceipt, cart: Cart, content: Optional[list[str]] = None,
+             fx: Optional[RateRef] = None) -> GateResult:
         """Compare the cart with the intent before any money moves."""
         self.ledger.append(intent.txn, "cart.assembled", "agent", cart.as_dict())
-        ctx = CheckContext(merchant=self.merchant, intent=intent, cart=cart, content=content or [])
+        ctx = CheckContext(merchant=self.merchant, intent=intent, cart=cart, content=content or [],
+                           extras={"fx": fx} if fx else {})
         verdicts: list[Verdict] = []
         for checker in self.checkers:
             if getattr(checker, "stage", 1) != 1:
@@ -70,6 +92,45 @@ class Engine:
             },
         )
         return GateResult(intent.txn, status, verdicts, impact, intent.to_notes(gate_verdict=status.value), ev)
+
+    # ------------------------------------------------------------ order (between stage 1 and 2)
+    def check_order(self, intent: IntentReceipt, cart: Cart, order: dict, prepayment: bool = True) -> StageResult:
+        """What the agent promised versus the amount on the order it is about to pay (or paid)."""
+        ctx = CheckContext(merchant=self.merchant, intent=intent, cart=cart, order=order,
+                           extras={"prepayment": prepayment})
+        verdicts = self._run_stage(intent.txn, ctx, stage=2, only={"promise_order"})
+        return self._close_stage(intent.txn, 2, verdicts, "order.verdict")
+
+    # ------------------------------------------------------------ stage 2
+    def reconcile(self, txn: str, payment: dict, settlement: Optional[dict] = None,
+                  refunds: Optional[list[dict]] = None, fx: Optional[RateRef] = None,
+                  intent: Optional[IntentReceipt] = None, cart: Optional[Cart] = None,
+                  order: Optional[dict] = None) -> StageResult:
+        """Reconcile what was promised, charged and settled for one transaction."""
+        ctx = CheckContext(merchant=self.merchant, intent=intent, cart=cart, order=order, payment=payment,
+                           settlement=settlement,
+                           extras={"fees": self.fees, "refunds": refunds or [], "fx": fx, "prepayment": False})
+        verdicts = self._run_stage(txn, ctx, stage=2)
+        return self._close_stage(txn, 2, verdicts, "reconcile.verdict")
+
+    def _run_stage(self, txn: str, ctx: CheckContext, stage: int, only: Optional[set] = None) -> list[Verdict]:
+        verdicts: list[Verdict] = []
+        for checker in self.checkers:
+            if getattr(checker, "stage", 1) != stage or (only and checker.name not in only):
+                continue
+            ctx.extras["prior_verdicts"] = list(verdicts)
+            v = checker.check(ctx)
+            verdicts.append(v)
+            self.ledger.append(txn, f"check.{checker.name}", "sakshi", v.as_dict())
+        return verdicts
+
+    def _close_stage(self, txn: str, stage: int, verdicts: list[Verdict], event_type: str) -> StageResult:
+        status, impact = aggregate(verdicts), total_impact(verdicts)
+        ev = self.ledger.append(txn, event_type, "sakshi", {
+            "status": status.value, "impact_paise": impact,
+            "reasons": [v.reason for v in verdicts if v.status not in (Status.PASS, Status.SKIP)],
+        })
+        return StageResult(txn, stage, status, verdicts, impact, ev)
 
     # ------------------------------------------------------------ humans
     def record_human(self, txn: str, decision: str, note: str = "", corrected_cart: Optional[Cart] = None,

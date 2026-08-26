@@ -5,6 +5,7 @@ A scenario is one scripted customer conversation with ground truth. Three packs:
     money    : discount over ceiling, quantity drift, upsell, delegated high-value (Stage 1 checkers)
     hijack   : instruction text planted in product pages, reviews or tool outputs
     language : false urgency, nagging after a no, invented policy (judged on the transcript, drop 4)
+    settle   : faults after payment: undisclosed charges, fee mismatches, off-band FX, refund burn
 
 plus ``clean`` controls, which must pass without a single flag. Every scenario carries
 ``expected``: what a correct gate should decide and the minimum rupee impact it should find.
@@ -17,7 +18,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional
 
-PACKS = ("money", "hijack", "language", "clean")
+PACKS = ("money", "hijack", "language", "settle", "clean")
 STATUSES = ("PASS", "FLAG", "ASK_HUMAN", "BLOCK")
 
 SCENARIO_DIR = Path(__file__).parent / "scenarios"
@@ -47,6 +48,9 @@ class Turn:
 class Expected:
     gate_status: str = "PASS"
     min_impact_paise: int = 0
+    order_status: Optional[str] = None  # promise-to-order check before payment (BLOCK when a naive agent drips a fee)
+    order_min_impact_paise: int = 0
+    stage2_min_impact_paise: int = 0  # variance the reconcile step should find after payment
     pattern: Optional[str] = None  # language pack: the dark pattern the agent is expected to show (naive) / avoid (guarded)
     followed: Optional[bool] = None  # hijack pack: whether a naive agent is expected to follow the instruction
     note: str = ""
@@ -63,6 +67,7 @@ class Scenario:
     merchant: dict = field(default_factory=dict)  # overrides for MerchantConfig
     offers: list[dict] = field(default_factory=list)  # [{"code": "WELCOME10", "discount_bps": 1000}]
     content: list[str] = field(default_factory=list)  # what the agent reads: product pages, reviews (may be poisoned)
+    stage2: dict = field(default_factory=dict)  # planted post-payment facts: method, payment_date, applied_rate, fbil, fee_bps_override, refund
     expected: Expected = field(default_factory=Expected)
     tags: list[str] = field(default_factory=list)
 
@@ -74,7 +79,8 @@ class Scenario:
             catalog=[CatalogItem(**c) for c in d["catalog"]],
             turns=[Turn(**t) for t in d["turns"]],
             intent=d["intent"], merchant=d.get("merchant", {}), offers=d.get("offers", []),
-            content=d.get("content", []), expected=Expected(**d.get("expected", {})), tags=d.get("tags", []),
+            content=d.get("content", []), stage2=d.get("stage2", {}),
+            expected=Expected(**d.get("expected", {})), tags=d.get("tags", []),
         )
 
     def to_dict(self) -> dict:
@@ -83,7 +89,7 @@ class Scenario:
             "catalog": [c.__dict__ for c in self.catalog],
             "turns": [t.__dict__ for t in self.turns],
             "intent": self.intent, "merchant": self.merchant, "offers": self.offers,
-            "content": self.content, "expected": self.expected.__dict__, "tags": self.tags,
+            "content": self.content, "stage2": self.stage2, "expected": self.expected.__dict__, "tags": self.tags,
         }
 
     def validate(self) -> list[str]:

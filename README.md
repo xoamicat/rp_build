@@ -39,7 +39,7 @@ Privacy: the raw customer utterance is never stored, only its hash and the agent
 python -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 cp .env.example .env                                  # leave keys blank for stub mode
-pytest                                                # 45 tests, no network
+pytest                                                # 57 tests, no network
 python scripts/demo_drop1.py                          # one transaction, end to end
 ```
 
@@ -49,6 +49,13 @@ Run Kasauti, the adversarial bank, at zero quota (rule-based judge):
 python scripts/run_kasauti.py            # naive agent vs guarded agent, 9 scenarios
 python scripts/run_kasauti.py --k 3      # repeats with paraphrase variants
 python scripts/run_kasauti.py --llm gemini   # real judge for the LLM checkers, cached in data/llm_cache.db
+```
+
+Look up the FBIL reference for a date and see how stale the feed is (cached after first run):
+
+```bash
+python scripts/fx_check.py               # today: the feed usually trails by several days
+python scripts/fx_check.py 2026-08-15    # a holiday: rolls back to the last published day
 ```
 
 Run the interceptor (stub mode until keys exist in `.env`):
@@ -76,17 +83,29 @@ ground truth. Two agents ship: `RuleAgent`, a deliberately naive ordering agent 
 bad habits (caves on discounts, follows injected instructions, manufactures urgency, nags after
 a no, rounds orders up to unlock combos), and `GuardedAgent`, the same agent behind the gate.
 
-Nine seed scenarios today: two clean controls (one in Hinglish), three money, two hijack, two
-language. Zero-quota run, k=3:
+Thirteen seed scenarios: two clean controls (one in Hinglish), three money, two hijack, two
+language, four settle. Zero-quota run:
 
 ```
-rule-naive   leakage/1000 conv = ₹95,778   status match 100%   false blocks 0%
-guarded      leakage/1000 conv = ₹0        status match 100%   false blocks 0%   1 order sent to a human
+rule-naive   leakage/1000 conv = ₹75,839   split: cart ₹862 | promise vs charge ₹60 | after payment ₹64
+guarded      leakage/1000 conv = ₹4,916    split: cart ₹0   | promise vs charge ₹0  | after payment ₹64
 ```
 
-That figure is a stress number on a bank where 7 of 9 conversations carry a planted fault.
-The report (drop 5) weights it by a declared traffic mix so it reads as an estimate, not a bank
-artefact. Language-pack patterns (false urgency, nagging) are judged on transcripts in drop 4.
+Read the split, not the headline. Cart and promise leakage is what the agent caused and the gate
+prevented. After-payment findings (a settlement fee above schedule, a conversion 3.9 percent under
+the FBIL reference, fee and GST burned on a refund) are the same for both agents: Sakshi finds that
+money, it cannot prevent it, and the dispute stage prices it. The headline is a stress number on a
+bank where 11 of 13 conversations carry a planted fault; the report (drop 5) weights it by a
+declared traffic mix. Language-pack patterns are judged on transcripts in drop 4.
+
+### Stage 2 in one transaction
+
+`promise_order` compares what the agent said the total was with the amount it put on the order,
+before payment (BLOCK) or after (FLAG). `settlement_fee` compares the settlement line with the
+payment and the merchant's fee schedule. `fx_rate` compares the applied conversion on an
+international payment with the FBIL reference for that day and lowers its confidence as the
+reference gets staler. `refund_burn` prices the fee and GST that Razorpay keeps on a refund.
+`fx_quote` (Stage 1) checks a rate the agent quoted to a foreign customer against the same reference.
 
 ## Layout
 
@@ -95,12 +114,13 @@ sakshi/
   ledger.py           append-only, hash-chained events (SQLite)
   intent.py           IntentReceipt -> Razorpay-safe notes, hashes, limits enforced
   models.py           Cart, CartLine, MerchantConfig
-  checkers/           checker protocol; Stage 1 deterministic checkers; LLM checkers (llm.py)
+  checkers/           checker protocol; Stage 1 deterministic checkers; LLM checkers (llm.py); Stage 2 (stage2.py)
   engine.py           runs checkers, writes the ledger, returns notes for the order
   gateway.py          StubGateway (tests, demo) and LiveGateway (official SDK, test mode)
   proxy/app.py        intercepting proxy in front of api.razorpay.com
   settlements/        fee math, refund fee burn, schema-faithful synthetic recon lines
   llm/                provider interface (mock, Ollama, rate-limited Gemini), response cache, heuristic judge
+  fx/fbil.py          FBIL reference via Frankfurter v2, cache, stale-day reporting, labelled ECB fallback
 kasauti/
   scenario.py         scenario schema, loader, validation
   simulator.py        scripted customer with seeded paraphrase variants
@@ -111,6 +131,7 @@ scripts/
   demo_drop1.py       one transaction end to end
   run_kasauti.py      naive vs guarded over the bank
   paraphrase_bank.py  one-time variant generation (offline or model), written back to the bank
+  fx_check.py         FBIL lookup with staleness
 tests/
 ```
 
@@ -124,14 +145,18 @@ tests/
 - **International payments.** `StubGateway.simulate_capture(rate=...)` derives `base_amount` the way
   Razorpay documents it (processing bank's rate on the payment date). Whether test mode returns
   `base_amount` for international test cards is being verified.
+- **FX reference.** FBIL's daily reference rate via Frankfurter v2 (`providers=FBIL`, with `date`).
+  The feed rolls back on holidays and can trail the calendar by a week; every reference carries
+  its published date and the checker's confidence falls with the gap. ECB is a labelled fallback.
+  In Kasauti scenarios the reference is planted (`stage2.fbil`) so runs are deterministic.
 
 ## Drops
 
 | Drop | Contents | Status |
 |---|---|---|
 | 1 | engine, ledger, intent receipt, Stage 1 checkers, interceptor, settlement synth, providers, tests | done |
-| 2 | LLM layer for Stage 1 with response cache; scenario bank, scripted customer, naive and guarded agents, runner, first leakage numbers | this commit |
-| 3 | Stage 2 checkers on settlements, FBIL client with stale-date handling, refund fee burn lines | |
+| 2 | LLM layer for Stage 1 with response cache; scenario bank, scripted customer, naive and guarded agents, runner, first leakage numbers | done |
+| 3 | Stage 2: promise-to-order, settlement fee, FX vs FBIL (with staleness), refund burn; FX quote check; settle pack; leakage split | this commit |
 | 4 | Stage 3 explain mode, verdict rules, evidence pack in Razorpay's representment order; Kasauti runs | |
 | 5 | Agent Leakage Rate report, before/after guardrail comparison, judge calibration | |
 | 6 | README final, benchmark page, video script | |

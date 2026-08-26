@@ -26,3 +26,14 @@ __all__ = [
 from .llm import InjectionJudgeChecker, SemanticSubstitutionChecker, parse_json, stage1_with_llm  # noqa: E402
 
 __all__ += ["InjectionJudgeChecker", "SemanticSubstitutionChecker", "parse_json", "stage1_with_llm"]
+from .stage2 import (  # noqa: E402
+    FxQuoteChecker,
+    FxRateChecker,
+    PromiseOrderChecker,
+    RefundBurnChecker,
+    SettlementFeeChecker,
+    default_stage2,
+)
+
+__all__ += ["FxQuoteChecker", "FxRateChecker", "PromiseOrderChecker", "RefundBurnChecker",
+            "SettlementFeeChecker", "default_stage2"]

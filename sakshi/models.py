@@ -34,6 +34,7 @@ class Cart:
     currency: str = "INR"
     discount_paise: int = 0
     quoted_total_paise: Optional[int] = None  # what the agent SAID the total was, if it said one
+    quoted_rate: Optional[float] = None  # INR per foreign unit the agent quoted, if it quoted one
 
     @property
     def gross_paise(self) -> int:
@@ -51,6 +52,7 @@ class Cart:
             "gross_paise": self.gross_paise,
             "total_paise": self.total_paise,
             "quoted_total_paise": self.quoted_total_paise,
+            "quoted_rate": self.quoted_rate,
         }
 
 
