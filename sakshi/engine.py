@@ -54,6 +54,7 @@ class Engine:
         for checker in self.checkers:
             if getattr(checker, "stage", 1) != 1:
                 continue
+            ctx.extras["prior_verdicts"] = list(verdicts)  # deterministic first, LLM checkers read these
             v = checker.check(ctx)
             verdicts.append(v)
             self.ledger.append(intent.txn, f"check.{checker.name}", "sakshi", v.as_dict())

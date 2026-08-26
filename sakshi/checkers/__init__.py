@@ -1,4 +1,4 @@
-from .base import CheckContext, Checker, Status, Verdict, aggregate, total_impact
+from .base import CheckContext, Checker, Status, Verdict, aggregate, effective, total_impact
 from .stage1 import (
     DiscountCeilingChecker,
     HitlThresholdChecker,
@@ -14,6 +14,7 @@ __all__ = [
     "Status",
     "Verdict",
     "aggregate",
+    "effective",
     "total_impact",
     "PriceCapChecker",
     "QuantitySkuChecker",
@@ -22,3 +23,6 @@ __all__ = [
     "InjectionPatternChecker",
     "default_stage1",
 ]
+from .llm import InjectionJudgeChecker, SemanticSubstitutionChecker, parse_json, stage1_with_llm  # noqa: E402
+
+__all__ += ["InjectionJudgeChecker", "SemanticSubstitutionChecker", "parse_json", "stage1_with_llm"]

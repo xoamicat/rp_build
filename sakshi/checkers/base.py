@@ -36,6 +36,8 @@ class Verdict:
     confidence: float = 1.0  # 1.0 deterministic; lower for LLM-derived judgements
     evidence: dict = field(default_factory=dict)
     basis: Optional[str] = None  # checkers measuring the same rupees share a basis (no double counting)
+    overrides: list[str] = field(default_factory=list)  # checker names this verdict retires (e.g. a semantic
+    # substitution judgement retiring a name-mismatch block). Only PASS verdicts may override.
 
     def as_dict(self) -> dict:
         return {
@@ -47,6 +49,7 @@ class Verdict:
             "confidence": self.confidence,
             "evidence": self.evidence,
             "basis": self.basis or self.checker,
+            "overrides": list(self.overrides),
         }
 
 
@@ -73,10 +76,19 @@ class Checker(Protocol):
     def check(self, ctx: CheckContext) -> Verdict: ...
 
 
+def effective(verdicts: list[Verdict]) -> list[Verdict]:
+    """Drop verdicts retired by a later PASS verdict's ``overrides``."""
+    retired: set[str] = set()
+    for v in verdicts:
+        if v.status is Status.PASS:
+            retired.update(v.overrides)
+    return [v for v in verdicts if v.checker not in retired]
+
+
 def aggregate(verdicts: list[Verdict]) -> Status:
     """Worst status wins. SKIP-only means PASS (nothing to check is not a failure)."""
     worst = Status.SKIP
-    for v in verdicts:
+    for v in effective(verdicts):
         if SEVERITY[v.status] > SEVERITY[worst]:
             worst = v.status
     return Status.PASS if worst == Status.SKIP else worst
@@ -87,7 +99,7 @@ def total_impact(verdicts: list[Verdict]) -> int:
     money from different angles (a cart over its cap is over the cap because of the extra
     items), so within a basis the largest impact is taken, and bases are summed."""
     by_basis: dict[str, int] = {}
-    for v in verdicts:
+    for v in effective(verdicts):
         if v.status not in (Status.FLAG, Status.ASK_HUMAN, Status.BLOCK):
             continue
         key = v.basis or v.checker

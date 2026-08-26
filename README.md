@@ -39,8 +39,16 @@ Privacy: the raw customer utterance is never stored, only its hash and the agent
 python -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 cp .env.example .env                                  # leave keys blank for stub mode
-pytest                                                # 28 tests, no network
+pytest                                                # 45 tests, no network
 python scripts/demo_drop1.py                          # one transaction, end to end
+```
+
+Run Kasauti, the adversarial bank, at zero quota (rule-based judge):
+
+```bash
+python scripts/run_kasauti.py            # naive agent vs guarded agent, 9 scenarios
+python scripts/run_kasauti.py --k 3      # repeats with paraphrase variants
+python scripts/run_kasauti.py --llm gemini   # real judge for the LLM checkers, cached in data/llm_cache.db
 ```
 
 Run the interceptor (stub mode until keys exist in `.env`):
@@ -52,6 +60,34 @@ python -m sakshi.proxy.app        # http://127.0.0.1:8787, GET /healthz
 Point any agent's Razorpay base URL at `http://127.0.0.1:8787` and every call it makes is logged
 to the ledger, linked by the `X-Sakshi-Txn` header or by `notes.sakshi_txn`.
 
+## How the LLM is spent
+
+Deterministic checkers run first and are free. The two LLM checkers (semantic substitution,
+injection judgement) only run when a deterministic checker found a semantic case, so a clean
+cart costs zero model calls. Every model response is cached by prompt hash
+(`sakshi/llm/cache.py`), so re-runs, re-judging and demos never spend quota twice. Development
+runs use `HeuristicJudge`, a rule-based stand-in; numbers you report come from a real judge.
+
+## Kasauti: the numbers
+
+Kasauti scripts a customer through a scenario (paraphrase variants picked by seed), drives the
+agent to checkout, and measures the cart that reached payment with Sakshi's checkers against
+ground truth. Two agents ship: `RuleAgent`, a deliberately naive ordering agent with switchable
+bad habits (caves on discounts, follows injected instructions, manufactures urgency, nags after
+a no, rounds orders up to unlock combos), and `GuardedAgent`, the same agent behind the gate.
+
+Nine seed scenarios today: two clean controls (one in Hinglish), three money, two hijack, two
+language. Zero-quota run, k=3:
+
+```
+rule-naive   leakage/1000 conv = ₹95,778   status match 100%   false blocks 0%
+guarded      leakage/1000 conv = ₹0        status match 100%   false blocks 0%   1 order sent to a human
+```
+
+That figure is a stress number on a bank where 7 of 9 conversations carry a planted fault.
+The report (drop 5) weights it by a declared traffic mix so it reads as an estimate, not a bank
+artefact. Language-pack patterns (false urgency, nagging) are judged on transcripts in drop 4.
+
 ## Layout
 
 ```
@@ -59,14 +95,22 @@ sakshi/
   ledger.py           append-only, hash-chained events (SQLite)
   intent.py           IntentReceipt -> Razorpay-safe notes, hashes, limits enforced
   models.py           Cart, CartLine, MerchantConfig
-  checkers/           the checker protocol and Stage 1 checkers
+  checkers/           checker protocol; Stage 1 deterministic checkers; LLM checkers (llm.py)
   engine.py           runs checkers, writes the ledger, returns notes for the order
   gateway.py          StubGateway (tests, demo) and LiveGateway (official SDK, test mode)
   proxy/app.py        intercepting proxy in front of api.razorpay.com
   settlements/        fee math, refund fee burn, schema-faithful synthetic recon lines
-  llm/provider.py     mock, Ollama, rate-limited Gemini
-kasauti/              adversarial runs that produce the Agent Leakage Rate (promptfoo)
-scripts/demo_drop1.py
+  llm/                provider interface (mock, Ollama, rate-limited Gemini), response cache, heuristic judge
+kasauti/
+  scenario.py         scenario schema, loader, validation
+  simulator.py        scripted customer with seeded paraphrase variants
+  agents.py           RuleAgent (naive), GuardedAgent (gate + correction policy), LlmAgent (minimal)
+  runner.py           run k times, measure, summarize (Agent Leakage Rate)
+  scenarios/*.json    the bank
+scripts/
+  demo_drop1.py       one transaction end to end
+  run_kasauti.py      naive vs guarded over the bank
+  paraphrase_bank.py  one-time variant generation (offline or model), written back to the bank
 tests/
 ```
 
@@ -85,8 +129,8 @@ tests/
 
 | Drop | Contents | Status |
 |---|---|---|
-| 1 | engine, ledger, intent receipt, Stage 1 checkers, interceptor, settlement synth, providers, tests | this commit |
-| 2 | LLM layer for Stage 1 (semantic substitution, injection judgement), scripted simulator bank | next |
+| 1 | engine, ledger, intent receipt, Stage 1 checkers, interceptor, settlement synth, providers, tests | done |
+| 2 | LLM layer for Stage 1 with response cache; scenario bank, scripted customer, naive and guarded agents, runner, first leakage numbers | this commit |
 | 3 | Stage 2 checkers on settlements, FBIL client with stale-date handling, refund fee burn lines | |
 | 4 | Stage 3 explain mode, verdict rules, evidence pack in Razorpay's representment order; Kasauti runs | |
 | 5 | Agent Leakage Rate report, before/after guardrail comparison, judge calibration | |
