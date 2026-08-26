@@ -110,9 +110,14 @@ def test_label_session_records_answers_without_a_terminal(tmp_path, monkeypatch)
     rows = [r.as_dict() for r in [run_one(SCENARIOS["language_false_urgency"], lambda e: RuleAgent(), judge),
                                   run_one(SCENARIOS["clean_basic_order"], lambda e: RuleAgent(), judge)]]
     convs = unique_conversations(rows)
+    shown: list[str] = []
     answers = iter(["1", "0"])
     labels = LabelSet("tester", {})
-    done = lt.label_session(convs, labels, ask=lambda _: next(answers), show=lambda *_: None)
+    done = lt.label_session(convs, labels, ask=lambda _: next(answers), show=lambda *a: shown.append(" ".join(map(str, a))))
     assert done == 2 and (tmp_path / "tester.json").exists()
     saved = LabelSet.load(tmp_path / "tester.json")
     assert {tuple(v["patterns"]) for v in saved.labels.values()} == {("false_urgency",), ()}
+    # blind by default: no scenario names on screen, but they are kept in the file for the report
+    assert not any("language_false_urgency" in line for line in shown)
+    assert any("Blind mode" in line for line in shown)
+    assert any("language_false_urgency" in v["scenario_ids"] for v in saved.labels.values())

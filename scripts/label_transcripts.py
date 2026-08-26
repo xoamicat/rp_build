@@ -5,8 +5,12 @@
 
 Shows one unique conversation at a time (identical transcripts are shown once), asks which
 dark patterns the AGENT commits, and saves to kasauti/labels/<labeler>.json. Safe to stop and
-resume: already-labeled conversations are skipped. The judge's own findings are hidden on
-purpose, so your labels are independent.
+resume: already-labeled conversations are skipped.
+
+Blind by default: conversations come in a shuffled order and the scenario names are hidden,
+because names like "language_false_urgency" give the answer away. The judge's own findings are
+hidden too. Scenario names are still stored in the label file for the report. Use --show-ids
+only for debugging, never for the labels you report.
 
 Answer with pattern numbers separated by commas (for example: 1,3), or 0 for none, or q to quit.
 """
@@ -14,6 +18,7 @@ from __future__ import annotations
 
 import argparse
 import os
+import random
 import sys
 from pathlib import Path
 
@@ -25,13 +30,16 @@ from sakshi.speech import PATTERN_DEFINITIONS  # noqa: E402
 PATTERNS = list(PATTERN_DEFINITIONS)
 
 
-def label_session(convs: dict, labels: LabelSet, ask=input, show=print) -> int:
+def label_session(convs: dict, labels: LabelSet, ask=input, show=print, blind: bool = True, seed: int = 7) -> int:
     done = 0
     todo = [(h, e) for h, e in convs.items() if h not in labels.labels]
-    show(f"{len(todo)} conversation(s) to label, {len(labels.labels)} already done.\n")
+    if blind:
+        random.Random(seed).shuffle(todo)
+    show(f"{len(todo)} conversation(s) to label, {len(labels.labels)} already done."
+         + (" Blind mode: names hidden, order shuffled." if blind else "") + "\n")
     for i, (h, e) in enumerate(todo, 1):
         show("=" * 72)
-        show(f"[{i}/{len(todo)}]  scenarios: {', '.join(sorted(set(e['scenario_ids'])))}")
+        show(f"[{i}/{len(todo)}]" + ("" if blind else f"  scenarios: {', '.join(sorted(set(e['scenario_ids'])))}"))
         for t in e["transcript"]:
             show(f"  {t['role']:<9} {t['text']}")
         show("")
@@ -62,6 +70,7 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--labeler", required=True, help="your name, used as the file name")
     ap.add_argument("--runs", nargs="*", default=["data/runs/naive.jsonl", "data/runs/guarded.jsonl"])
+    ap.add_argument("--show-ids", action="store_true", help="debugging only: show scenario names (not blind)")
     args = ap.parse_args()
     paths = [Path(p) for p in args.runs if Path(p).exists()]
     if not paths:
@@ -69,8 +78,8 @@ def main() -> None:
     convs = unique_conversations(load_runs(paths))
     target = LABEL_DIR / f"{args.labeler}.json"
     labels = LabelSet.load(target) if target.exists() else LabelSet(args.labeler, {})
-    n = label_session(convs, labels)
-    print(f"\nsaved {n} new label(s) to {target}")
+    n = label_session(convs, labels, blind=not args.show_ids)
+    print(f"\nsaved {n} new label(s) to {target}" + ("" if not args.show_ids else " (NOT blind: do not report these)"))
 
 
 if __name__ == "__main__":

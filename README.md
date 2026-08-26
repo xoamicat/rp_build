@@ -137,7 +137,10 @@ bank figure is a stress number.
 ### Calibration and Stage 4 memory
 
 The judge is graded against people, not itself. `scripts/label_transcripts.py` shows each unique
-conversation with the judge's findings hidden and records what a human sees. `kasauti/calibrate.py`
+conversation blind (shuffled order, scenario names hidden, judge findings hidden) and records what
+a human sees. Eighteen conversations labelled by two people is a small set, so the report gives
+counts rather than a single accuracy figure, and the second labeller, who did not write the
+scenarios, is the one that matters. `kasauti/calibrate.py`
 scores the scanner alone, the model judge alone, and the merged verdict against those labels
 (precision, recall, F1, strict and by pattern family, since drip pricing and basket sneaking both
 mean "something joined the bill without being said"), and reports agreement between two labelers
