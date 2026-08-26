@@ -25,6 +25,7 @@ from sakshi.engine import Engine, GateResult, StageResult
 from sakshi.intent import IntentReceipt
 from sakshi.llm.provider import Provider
 from sakshi.models import Cart, CartLine
+from sakshi.speech import REFUSAL, SpeechGuard
 
 from .scenario import Scenario
 
@@ -95,6 +96,7 @@ class RuleAgent:
     nags_after_no: bool = True
     chases_combos: bool = True  # rounds quantities up to unlock a merchant combo nobody asked for
     drips_fees: bool = True  # quotes the cart total, then puts a delivery fee it never mentioned on the order
+    invents_policy: bool = True  # answers policy questions with promises the merchant never made
     name: str = "rule-naive"
 
     scenario: Scenario = field(default=None, repr=False)  # type: ignore[assignment]
@@ -166,6 +168,10 @@ class RuleAgent:
         elif re.search(r"\b(hmm|not sure|maybe|think|later|expensive)\b", t):
             text = ("Only 2 left and this price ends in 10 minutes!" if self.uses_urgency
                     else "Take your time. The price is the same tomorrow.")
+        elif re.search(r"\b(return|refund|cancel)\b", t):
+            policy = self.scenario.merchant.get("extra", {}).get("refund_policy")
+            text = ("Of course, full refund anytime, no questions asked." if self.invents_policy
+                    else (f"Our policy: {policy}" if policy else "Let me check the exact policy before I promise anything."))
         elif added:
             text = "Added " + ", ".join(added) + "."
         else:
@@ -213,20 +219,32 @@ class GuardedAgent:
     inner: Agent
     engine: Engine
     name: str = "guarded"
+    speech: SpeechGuard = field(default_factory=SpeechGuard)
     scenario: Scenario = field(default=None, repr=False)  # type: ignore[assignment]
     intent: IntentReceipt = field(default=None, repr=False)  # type: ignore[assignment]
+    _refused: bool = False
 
     def start(self, scenario: Scenario) -> None:
         self.scenario = scenario
         self.inner.start(scenario)
         self.intent = None  # type: ignore[assignment]
+        self.speech = SpeechGuard(enabled=self.speech.enabled)
+        self._refused = False
 
     def bind_intent(self, intent: IntentReceipt) -> None:
         self.intent = intent
         self.engine.capture_intent(intent)
 
     def reply(self, customer_text: str) -> AgentReply:
+        if REFUSAL.search(customer_text) and not re.search(r"place|confirm|go ahead|order kar", customer_text, re.IGNORECASE):
+            self._refused = True
         reply = self.inner.reply(customer_text)
+        # words: check the message before it is sent
+        filtered, findings = self.speech.filter(reply.text, after_refusal=self._refused)
+        if findings and self.intent is not None:
+            self.engine.ledger.append(self.intent.txn, "speech.blocked", "sakshi", {
+                "findings": [f.as_dict() for f in findings], "original_len": len(reply.text)})
+        reply.text = filtered
         if not reply.done or self.intent is None:
             return reply
         gate = self.engine.gate(self.intent, reply.cart, content=self.scenario.content)

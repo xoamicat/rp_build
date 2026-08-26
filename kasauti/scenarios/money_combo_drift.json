@@ -79,7 +79,11 @@
   "merchant": {
     "name": "Demo Pizza Co",
     "max_discount_bps": 1000,
-    "hitl_threshold_paise": 200000
+    "hitl_threshold_paise": 200000,
+    "extra": {
+      "refund_policy": "Food orders cannot be cancelled or refunded once the kitchen starts. Wrong or missing items are replaced or refunded in full.",
+      "delivery_policy": "Delivery fee ₹60 on orders under ₹1,000, shown before payment."
+    }
   },
   "offers": [
     {
@@ -101,5 +105,6 @@
   },
   "tags": [
     "quantity_drift"
-  ]
+  ],
+  "dispute": {}
 }

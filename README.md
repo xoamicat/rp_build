@@ -39,8 +39,9 @@ Privacy: the raw customer utterance is never stored, only its hash and the agent
 python -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 cp .env.example .env                                  # leave keys blank for stub mode
-pytest                                                # 57 tests, no network
+pytest                                                # 70 tests, no network
 python scripts/demo_drop1.py                          # one transaction, end to end
+python scripts/demo_dispute.py                        # two disputes: agent error (refund), cross-border (contest, priced)
 ```
 
 Run Kasauti, the adversarial bank, at zero quota (rule-based judge):
@@ -83,12 +84,14 @@ ground truth. Two agents ship: `RuleAgent`, a deliberately naive ordering agent 
 bad habits (caves on discounts, follows injected instructions, manufactures urgency, nags after
 a no, rounds orders up to unlock combos), and `GuardedAgent`, the same agent behind the gate.
 
-Thirteen seed scenarios: two clean controls (one in Hinglish), three money, two hijack, two
-language, four settle. Zero-quota run:
+Fourteen seed scenarios: two clean controls (one in Hinglish), three money, two hijack, three
+language, four settle; five of them carry a planted dispute. Zero-quota run:
 
 ```
-rule-naive   leakage/1000 conv = ₹75,839   split: cart ₹862 | promise vs charge ₹60 | after payment ₹64
-guarded      leakage/1000 conv = ₹4,916    split: cart ₹0   | promise vs charge ₹0  | after payment ₹64
+rule-naive   leakage/1000 conv = ₹70,422   split: cart ₹862 | promise vs charge ₹60 | after payment ₹64
+             words: 4 incidents = 286 per 1000 conv     disputes: 5 raised, 100% as expected, ₹3,050 refunds
+guarded      leakage/1000 conv = ₹4,565    split: cart ₹0   | promise vs charge ₹0  | after payment ₹64
+             words: 0 incidents, 3 messages rewritten    disputes: 4 raised, 100% as expected, ₹0 refunds
 ```
 
 Read the split, not the headline. Cart and promise leakage is what the agent caused and the gate
@@ -107,6 +110,33 @@ international payment with the FBIL reference for that day and lowers its confid
 reference gets staler. `refund_burn` prices the fee and GST that Razorpay keeps on a refund.
 `fx_quote` (Stage 1) checks a rate the agent quoted to a foreign customer against the same reference.
 
+### Words: the speech guard and the transcript judge
+
+The gate fixes money, not sentences. `sakshi/speech.py` encodes the dark patterns an agent can
+commit in speech (from the 2023 guidelines: false urgency, confirm shaming, nagging, drip pricing,
+basket sneaking, bait and switch, forced action, misrepresentation, subscription trap). A
+deterministic scanner runs on every message the guarded agent is about to send and replaces
+blatant phrasing with a compliant line, logging `speech.blocked`. After the conversation, the
+transcript judge (`kasauti/judge.py`) scores the whole exchange with the definitions and the
+merchant's real policies, so an invented "full refund anytime" is caught against a policy that
+says otherwise. Judge calls are counted separately from gate calls: a clean cart still costs zero
+gate calls; each transcript costs one judge call with a real model.
+
+### Stage 3: the dispute agent
+
+`sakshi/dispute.py` reads the chain back and recommends CONTEST, REFUND, PARTIAL_REFUND or
+ESCALATE with reasons. Rules, not vibes: a cart that matched intent before payment is contested
+with the intent receipt; a blocked cart that was paid anyway is refunded as agent error; an
+undisclosed charge above the stated total is partially refunded; a delegated order held or
+blocked by the gate and paid without a human approval on record is refunded; delivery claims
+escalate because that evidence is outside the chain. Every result prices the cost of refunding:
+amount, fee and GST Razorpay keeps, and on international payments the gap between the
+payment-day rate and the dispute-day rate, because Razorpay deducts disputes at the dispute-day
+rate. The evidence pack has nine sections in Razorpay's representment order, from transaction
+details through customer authorisation to ledger integrity, and a plain-language explanation is
+written for the customer. Anything below the confidence threshold, above the merchant's approval
+threshold, or escalated is marked for a human.
+
 ## Layout
 
 ```
@@ -115,6 +145,8 @@ sakshi/
   intent.py           IntentReceipt -> Razorpay-safe notes, hashes, limits enforced
   models.py           Cart, CartLine, MerchantConfig
   checkers/           checker protocol; Stage 1 deterministic checkers; LLM checkers (llm.py); Stage 2 (stage2.py)
+  speech.py           dark-pattern definitions, phrase scanner, speech guard
+  dispute.py          Stage 3: chain view, decision rules, cost of refund, evidence pack, customer explanation
   engine.py           runs checkers, writes the ledger, returns notes for the order
   gateway.py          StubGateway (tests, demo) and LiveGateway (official SDK, test mode)
   proxy/app.py        intercepting proxy in front of api.razorpay.com
@@ -124,11 +156,13 @@ sakshi/
 kasauti/
   scenario.py         scenario schema, loader, validation
   simulator.py        scripted customer with seeded paraphrase variants
+  judge.py            transcript judge (model + scanner)
   agents.py           RuleAgent (naive), GuardedAgent (gate + correction policy), LlmAgent (minimal)
   runner.py           run k times, measure, summarize (Agent Leakage Rate)
   scenarios/*.json    the bank
 scripts/
   demo_drop1.py       one transaction end to end
+  demo_dispute.py     two disputes with evidence packs
   run_kasauti.py      naive vs guarded over the bank
   paraphrase_bank.py  one-time variant generation (offline or model), written back to the bank
   fx_check.py         FBIL lookup with staleness
@@ -156,8 +190,8 @@ tests/
 |---|---|---|
 | 1 | engine, ledger, intent receipt, Stage 1 checkers, interceptor, settlement synth, providers, tests | done |
 | 2 | LLM layer for Stage 1 with response cache; scenario bank, scripted customer, naive and guarded agents, runner, first leakage numbers | done |
-| 3 | Stage 2: promise-to-order, settlement fee, FX vs FBIL (with staleness), refund burn; FX quote check; settle pack; leakage split | this commit |
-| 4 | Stage 3 explain mode, verdict rules, evidence pack in Razorpay's representment order; Kasauti runs | |
+| 3 | Stage 2: promise-to-order, settlement fee, FX vs FBIL (with staleness), refund burn; FX quote check; settle pack; leakage split | done |
+| 4 | Speech guard and transcript judge (words); Stage 3 dispute agent with evidence pack, customer explanation and dispute-day FX; planted disputes | this commit |
 | 5 | Agent Leakage Rate report, before/after guardrail comparison, judge calibration | |
 | 6 | README final, benchmark page, video script | |
 

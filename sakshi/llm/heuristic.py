@@ -11,6 +11,7 @@ import re
 from typing import Optional
 
 from ..checkers.llm import parse_json
+from ..speech import scan_transcript
 
 
 def _norm(s) -> str:
@@ -32,7 +33,16 @@ class HeuristicJudge:
             return self._substitution(task)
         if "followed" in fmt:
             return self._injection(task)
+        if "findings" in fmt:
+            return self._patterns(task)
+        if "variants" in fmt:
+            return json.dumps({"variants": []})
         return "{}"
+
+    # ---------------------------------------------------------- transcript
+    def _patterns(self, task: dict) -> str:
+        findings = scan_transcript(task.get("transcript", []))
+        return json.dumps({"findings": [{"pattern": f.pattern, "quote": f.snippet, "confidence": f.confidence} for f in findings]})
 
     # -------------------------------------------------------- substitution
     def _substitution(self, task: dict) -> str:

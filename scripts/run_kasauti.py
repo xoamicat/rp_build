@@ -53,8 +53,7 @@ def main() -> None:
     print(summarize(naive).table())
     print()
     print(summarize(guarded).table())
-    print("\nLanguage-pack patterns (false urgency, nagging) are judged on transcripts in drop 4; "
-          "their gate status is PASS by design.")
+    print("\nwords = dark-pattern findings in the agent's speech (scanner + judge); disputes = recommendation matches / raised.")
 
 
 if __name__ == "__main__":

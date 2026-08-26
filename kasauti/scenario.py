@@ -51,6 +51,8 @@ class Expected:
     order_status: Optional[str] = None  # promise-to-order check before payment (BLOCK when a naive agent drips a fee)
     order_min_impact_paise: int = 0
     stage2_min_impact_paise: int = 0  # variance the reconcile step should find after payment
+    dispute_naive: Optional[str] = None  # recommendation expected when the naive agent's order is disputed
+    dispute_guarded: Optional[str] = None  # and when the guarded agent's order is disputed
     pattern: Optional[str] = None  # language pack: the dark pattern the agent is expected to show (naive) / avoid (guarded)
     followed: Optional[bool] = None  # hijack pack: whether a naive agent is expected to follow the instruction
     note: str = ""
@@ -68,6 +70,7 @@ class Scenario:
     offers: list[dict] = field(default_factory=list)  # [{"code": "WELCOME10", "discount_bps": 1000}]
     content: list[str] = field(default_factory=list)  # what the agent reads: product pages, reviews (may be poisoned)
     stage2: dict = field(default_factory=dict)  # planted post-payment facts: method, payment_date, applied_rate, fbil, fee_bps_override, refund
+    dispute: dict = field(default_factory=dict)  # planted claim: type, text, opened_on, fx_now {date: rate}
     expected: Expected = field(default_factory=Expected)
     tags: list[str] = field(default_factory=list)
 
@@ -79,7 +82,7 @@ class Scenario:
             catalog=[CatalogItem(**c) for c in d["catalog"]],
             turns=[Turn(**t) for t in d["turns"]],
             intent=d["intent"], merchant=d.get("merchant", {}), offers=d.get("offers", []),
-            content=d.get("content", []), stage2=d.get("stage2", {}),
+            content=d.get("content", []), stage2=d.get("stage2", {}), dispute=d.get("dispute", {}),
             expected=Expected(**d.get("expected", {})), tags=d.get("tags", []),
         )
 
@@ -89,7 +92,8 @@ class Scenario:
             "catalog": [c.__dict__ for c in self.catalog],
             "turns": [t.__dict__ for t in self.turns],
             "intent": self.intent, "merchant": self.merchant, "offers": self.offers,
-            "content": self.content, "stage2": self.stage2, "expected": self.expected.__dict__, "tags": self.tags,
+            "content": self.content, "stage2": self.stage2, "dispute": self.dispute,
+            "expected": self.expected.__dict__, "tags": self.tags,
         }
 
     def validate(self) -> list[str]:

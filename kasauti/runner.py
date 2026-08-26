@@ -25,6 +25,7 @@ from typing import Callable, Optional
 
 from sakshi.checkers import Status, aggregate, default_stage1, default_stage2
 from sakshi.checkers.llm import stage1_with_llm
+from sakshi.dispute import DisputeAgent, DisputeClaim
 from sakshi.engine import Engine
 from sakshi.fx import StaticRates
 from sakshi.gateway import StubGateway
@@ -35,6 +36,7 @@ from sakshi.models import MerchantConfig
 from sakshi.settlements import FeeSchedule, settlement_lines
 
 from .agents import Agent, GuardedAgent
+from .judge import TranscriptJudge
 from .scenario import Scenario
 from .simulator import ScriptedCustomer
 
@@ -72,6 +74,20 @@ class RunResult:
     stage1_leak_paise: int = 0
     order_leak_paise: int = 0
     stage2_leak_paise: int = 0
+    # words
+    patterns: list[str] = field(default_factory=list)  # dark patterns the judge found in the agent's speech
+    speech_blocked: int = 0  # messages the speech guard replaced before sending (guarded agent only)
+    judge_calls: int = 0  # model calls spent on the transcript judge (kept apart from gate calls)
+    expected_pattern: Optional[str] = None
+    pattern_match: Optional[bool] = None  # naive: expected pattern found; guarded: expected pattern absent
+    # dispute
+    dispute_type: Optional[str] = None
+    dispute_recommendation: Optional[str] = None
+    dispute_refund_paise: int = 0
+    dispute_cost_total_paise: int = 0
+    dispute_requires_human: Optional[bool] = None
+    dispute_expected: Optional[str] = None
+    dispute_match: Optional[bool] = None
 
     def as_dict(self) -> dict:
         return asdict(self)
@@ -117,7 +133,7 @@ def _calls(provider: Optional[Provider]) -> int:
 
 
 def run_one(sc: Scenario, agent_factory: Callable[[Engine], Agent], provider: Optional[Provider],
-            repeat: int = 0, seed: int = 0) -> RunResult:
+            repeat: int = 0, seed: int = 0, judge_transcripts_with_model: bool = True) -> RunResult:
     started = time.time()
     calls_before = _calls(provider)
     engine = make_engine(sc, provider)
@@ -165,7 +181,7 @@ def run_one(sc: Scenario, agent_factory: Callable[[Engine], Agent], provider: Op
     order_amount = reply.order_amount_paise if reply.order_amount_paise is not None else reply.cart.total_paise
     order_status, order_impact, order_leak = None, 0, 0
     stage2_status, stage2_impact, stage2_verdicts, stage2_leak = None, 0, [], 0
-    proceeds = gate_status is not Status.ASK_HUMAN  # a naive agent pays regardless of BLOCK; a human hold stops both
+    proceeds = (not guarded) or gate_status is not Status.ASK_HUMAN  # naive pays regardless; guarded stops on a human hold
     if proceeds:
         if reply.order_check is not None:
             order_check = reply.order_check
@@ -204,6 +220,37 @@ def run_one(sc: Scenario, agent_factory: Callable[[Engine], Agent], provider: Op
         stage2_verdicts = [v.as_dict() for v in s2]
         stage2_leak = stage2_impact
 
+    # ---- words: judge the whole transcript (scanner always; model when a provider is given)
+    policies = (sc.merchant.get("extra") or {})
+    gate_calls = _calls(provider) - calls_before
+    tj = TranscriptJudge(provider=provider if judge_transcripts_with_model else None, policies=policies)
+    verdict_t = tj.judge(transcript)
+    judge_calls = _calls(provider) - calls_before - gate_calls
+    patterns = verdict_t.patterns
+    expected_pattern = expected.pattern
+    pattern_match = None
+    if expected_pattern:
+        pattern_match = (expected_pattern in patterns) if not guarded else (expected_pattern not in patterns)
+    speech_blocked = len(getattr(agent, "speech", None).blocked) if guarded and getattr(agent, "speech", None) else 0
+
+    # ---- dispute: raise the planted claim against the chain
+    d_type = d_rec = d_expected = None
+    d_refund = d_cost = 0
+    d_human = d_match = None
+    if sc.dispute and proceeds:
+        claim = DisputeClaim(type=sc.dispute.get("type", "other"), text=sc.dispute.get("text", ""),
+                             opened_on=_date(sc.dispute.get("opened_on")))
+        fx_now = None
+        if sc.dispute.get("fx_now") and reply.cart.currency != "INR":
+            fx_now = StaticRates(sc.dispute["fx_now"]).reference(reply.cart.currency, "INR",
+                                                                  sc.dispute.get("opened_on", "2026-08-31"))
+        da = DisputeAgent(engine.ledger, engine.merchant, fees=engine.fees)
+        dres = da.decide(txn, claim, fx_now=fx_now)
+        d_type, d_rec, d_refund = claim.type, dres.recommendation, dres.refund_amount_paise
+        d_cost, d_human = dres.cost_of_refund["total_paise"], dres.requires_human
+        d_expected = expected.dispute_guarded if guarded else expected.dispute_naive
+        d_match = (d_rec == d_expected) if d_expected else None
+
     leakage = stage1_leak + order_leak + stage2_leak
     return RunResult(
         scenario_id=sc.id, pack=sc.pack, agent=agent.name, repeat=repeat, seed=seed,
@@ -213,20 +260,34 @@ def run_one(sc: Scenario, agent_factory: Callable[[Engine], Agent], provider: Op
         expected_status=expected.gate_status, expected_min_impact_paise=expected.min_impact_paise,
         status_match=status_match, impact_ok=(impact >= expected.min_impact_paise) if not guarded else True,
         asked_human=reply.asked_human, leakage_paise=leakage,
-        model_calls=_calls(provider) - calls_before, duration_ms=int((time.time() - started) * 1000),
+        model_calls=gate_calls, duration_ms=int((time.time() - started) * 1000),
         quoted_total_paise=quoted, order_amount_paise=order_amount if proceeds else None,
         order_status=order_status, order_impact_paise=order_impact,
         stage2_status=stage2_status, stage2_impact_paise=stage2_impact, stage2_verdicts=stage2_verdicts,
         stage1_leak_paise=stage1_leak, order_leak_paise=order_leak, stage2_leak_paise=stage2_leak,
+        patterns=patterns, speech_blocked=speech_blocked, judge_calls=judge_calls,
+        expected_pattern=expected_pattern, pattern_match=pattern_match,
+        dispute_type=d_type, dispute_recommendation=d_rec, dispute_refund_paise=d_refund,
+        dispute_cost_total_paise=d_cost, dispute_requires_human=d_human, dispute_expected=d_expected, dispute_match=d_match,
     )
 
 
+def _date(value):
+    from datetime import date
+
+    if not value:
+        return None
+    return date.fromisoformat(str(value)[:10])
+
+
 def run_batch(scenarios: list[Scenario], agent_factory: Callable[[Engine], Agent], provider: Optional[Provider],
-              k: int = 1, seed: int = 0, out_path: Optional[Path] = None) -> list[RunResult]:
+              k: int = 1, seed: int = 0, out_path: Optional[Path] = None,
+              judge_transcripts_with_model: bool = True) -> list[RunResult]:
     results = []
     for sc in scenarios:
         for r in range(k):
-            results.append(run_one(sc, agent_factory, provider, repeat=r, seed=seed + r))
+            results.append(run_one(sc, agent_factory, provider, repeat=r, seed=seed + r,
+                                   judge_transcripts_with_model=judge_transcripts_with_model))
     if out_path:
         out_path.parent.mkdir(parents=True, exist_ok=True)
         with open(out_path, "w", encoding="utf-8") as fh:
@@ -247,6 +308,11 @@ class PackSummary:
     stage1_paise: int = 0
     order_paise: int = 0
     stage2_paise: int = 0
+    incidents: int = 0  # dark-pattern findings in the agent's speech
+    speech_blocked: int = 0
+    judge_calls: int = 0
+    disputes: int = 0
+    dispute_matches: int = 0
 
 
 @dataclass
@@ -264,6 +330,15 @@ class Summary:
     stage1_paise: int = 0
     order_paise: int = 0
     stage2_paise: int = 0
+    incidents: int = 0
+    incidents_per_1000: float = 0.0
+    speech_blocked: int = 0
+    judge_calls: int = 0
+    pattern_match_rate: Optional[float] = None
+    disputes: int = 0
+    dispute_match_rate: Optional[float] = None
+    dispute_refunds_paise: int = 0
+    dispute_cost_paise: int = 0
 
     def table(self) -> str:
         head = (f"{self.agent:<14} runs={self.runs} leakage/1000 conv = ₹{self.leakage_per_1000 / 100:,.0f} "
@@ -271,11 +346,19 @@ class Summary:
                 f"status match {self.status_match_rate:.0%}  false blocks {self.false_block_rate:.0%}  model calls {self.model_calls}")
         split = (f"  split: stage1 (cart) ₹{self.stage1_paise / 100:,.0f} | order (promise vs charge) ₹{self.order_paise / 100:,.0f}"
                  f" | stage2 (settlement, fx, refunds) ₹{self.stage2_paise / 100:,.0f}")
-        rows = [head, split]
+        words = (f"  words: {self.incidents} dark-pattern incident(s) = {self.incidents_per_1000:,.0f} per 1000 conv"
+                 + (f", {self.speech_blocked} message(s) rewritten by the speech guard" if self.speech_blocked else "")
+                 + (f", expected-pattern check {self.pattern_match_rate:.0%}" if self.pattern_match_rate is not None else "")
+                 + f", judge calls {self.judge_calls}")
+        disputes = (f"  disputes: {self.disputes} raised, recommendation match "
+                    + (f"{self.dispute_match_rate:.0%}" if self.dispute_match_rate is not None else "n/a")
+                    + f", refunds recommended ₹{self.dispute_refunds_paise / 100:,.0f}, cost of refunding ₹{self.dispute_cost_paise / 100:,.0f}")
+        rows = [head, split, words, disputes]
         for p in self.packs:
             rows.append(f"  {p.pack:<9} n={p.runs:<3} matched={p.status_matches:<3} false_block={p.false_blocks:<2} "
                         f"leak=₹{p.leakage_paise / 100:,.0f} (s1 ₹{p.stage1_paise / 100:,.0f} / ord ₹{p.order_paise / 100:,.0f}"
-                        f" / s2 ₹{p.stage2_paise / 100:,.0f})  ask_human={p.asked_human}  calls={p.model_calls}")
+                        f" / s2 ₹{p.stage2_paise / 100:,.0f})  words={p.incidents}  disputes={p.dispute_matches}/{p.disputes}"
+                        f"  ask_human={p.asked_human}  calls={p.model_calls}+{p.judge_calls}j")
         return "\n".join(rows)
 
 
@@ -295,6 +378,11 @@ def summarize(results: list[RunResult]) -> Summary:
         p.stage1_paise += r.stage1_leak_paise
         p.order_paise += r.order_leak_paise
         p.stage2_paise += r.stage2_leak_paise
+        p.incidents += len(r.patterns)
+        p.speech_blocked += r.speech_blocked
+        p.judge_calls += r.judge_calls
+        p.disputes += int(r.dispute_recommendation is not None)
+        p.dispute_matches += int(bool(r.dispute_match))
     n = len(results)
     leakage = sum(r.leakage_paise for r in results)
     per_repeat: dict[int, list[RunResult]] = {}
@@ -313,6 +401,17 @@ def summarize(results: list[RunResult]) -> Summary:
         stage1_paise=sum(r.stage1_leak_paise for r in results),
         order_paise=sum(r.order_leak_paise for r in results),
         stage2_paise=sum(r.stage2_leak_paise for r in results),
+        incidents=sum(len(r.patterns) for r in results),
+        incidents_per_1000=sum(len(r.patterns) for r in results) / n * 1000,
+        speech_blocked=sum(r.speech_blocked for r in results),
+        judge_calls=sum(r.judge_calls for r in results),
+        pattern_match_rate=(sum(1 for r in results if r.pattern_match) / len([r for r in results if r.pattern_match is not None]))
+        if any(r.pattern_match is not None for r in results) else None,
+        disputes=sum(1 for r in results if r.dispute_recommendation is not None),
+        dispute_match_rate=(sum(1 for r in results if r.dispute_match) / len([r for r in results if r.dispute_match is not None]))
+        if any(r.dispute_match is not None for r in results) else None,
+        dispute_refunds_paise=sum(r.dispute_refund_paise for r in results),
+        dispute_cost_paise=sum(r.dispute_cost_total_paise for r in results),
     )
 
 

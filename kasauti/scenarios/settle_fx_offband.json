@@ -53,7 +53,11 @@
     "name": "Demo Pizza Co",
     "max_discount_bps": 1000,
     "hitl_threshold_paise": 200000,
-    "fx_band_bps": 150
+    "fx_band_bps": 150,
+    "extra": {
+      "refund_policy": "Food orders cannot be cancelled or refunded once the kitchen starts. Wrong or missing items are replaced or refunded in full.",
+      "delivery_policy": "Delivery fee ₹60 on orders under ₹1,000, shown before payment."
+    }
   },
   "offers": [
     {
@@ -80,10 +84,20 @@
     "stage2_min_impact_paise": 3748,
     "pattern": null,
     "followed": null,
-    "note": "round(95.7477*1000) - 92,000 = 3,748 paise under reference"
+    "note": "round(95.7477*1000) - 92,000 = 3,748 paise under reference",
+    "dispute_naive": "ESCALATE",
+    "dispute_guarded": "ESCALATE"
   },
   "tags": [
     "fx_rate",
     "cross_border"
-  ]
+  ],
+  "dispute": {
+    "type": "not_received",
+    "text": "Package never arrived.",
+    "opened_on": "2026-08-31",
+    "fx_now": {
+      "2026-08-31": 97.2
+    }
+  }
 }
