@@ -1,0 +1,1998 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SettleX Atlas — Agentic Commerce Evidence</title>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] },
+                    colors: {
+                        rz: { 50: '#F0F4FF', 100: '#E0EAFF', 200: '#C2D5FF', 300: '#528FF0', 400: '#3B7DE6', 500: '#1A56DB', 600: '#072654', 700: '#041A3B', 800: '#020F24' },
+                        surface: 'rgba(255,255,255,0.7)',
+                    },
+                    boxShadow: {
+                        glass: '0 8px 32px rgba(7,38,84,0.08)',
+                        card: '0 1px 3px rgba(7,38,84,0.06), 0 1px 2px rgba(7,38,84,0.04)',
+                        lifted: '0 20px 60px rgba(7,38,84,0.12)'
+                    },
+                }
+            }
+        }
+    </script>
+
+    <style>
+        :root { --ink: #0f2344; --muted: #526985; --line: rgba(107, 155, 218, .22); --blue: #1769e0; }
+        body {
+            background:
+                radial-gradient(circle at 12% 0%, rgba(80, 154, 255, .22), transparent 30rem),
+                radial-gradient(circle at 92% 12%, rgba(160, 211, 255, .42), transparent 28rem),
+                linear-gradient(135deg, #f7fbff 0%, #edf6ff 45%, #f9fcff 100%);
+            min-height: 100vh; margin: 0; color: var(--ink);
+        }
+        .glass {
+            background: rgba(255,255,255,.72);
+            backdrop-filter: blur(20px) saturate(150%);
+            -webkit-backdrop-filter: blur(20px) saturate(150%);
+            border: 1px solid rgba(255,255,255,.9);
+            box-shadow: 0 14px 38px rgba(33, 90, 161, .10);
+        }
+        .glass-light {
+            background: rgba(255,255,255,.82);
+            backdrop-filter: blur(24px) saturate(160%);
+            -webkit-backdrop-filter: blur(24px) saturate(160%);
+            border: 1px solid rgba(255,255,255,.95);
+        }
+        .glass-dark {
+            background: linear-gradient(180deg, rgba(12, 53, 116, .96), rgba(18, 105, 204, .92));
+            backdrop-filter: blur(24px);
+            border-right: 1px solid rgba(255,255,255,.25);
+        }
+        .gradient-text { background: linear-gradient(120deg, #0b4bb3 0%, #1479e8 52%, #43a9ee 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .gradient-btn { background: linear-gradient(120deg, #0754be 0%, #167be7 58%, #45a9ed 100%); color: white; transition: all .25s; box-shadow: 0 12px 24px rgba(23,105,224,.24); }
+        .gradient-btn:hover { box-shadow: 0 16px 30px rgba(23,105,224,.32); transform: translateY(-1px); }
+        .sidebar-link { transition: all .2s ease; cursor: pointer; border-left: 3px solid transparent; }
+        .sidebar-link:hover { background: rgba(255,255,255,.12); border-left-color: rgba(255,255,255,.5); }
+        .sidebar-link.active { background: linear-gradient(90deg, rgba(255,255,255,.22), transparent); border-left-color: #fff; }
+        .fade-in { animation: fadeIn .4s cubic-bezier(0.4,0,0.2,1); }
+        .chat-user, .chat-user .text-gray-800 {
+            background: linear-gradient(135deg, #0b62ce, #3295eb);
+            border: 1px solid rgba(10,91,196,.35);
+            border-radius: 16px 16px 4px 16px;
+            color: white;
+        }
+        .chat-agent {
+            background: rgba(255,255,255,.92);
+            border: 1px solid var(--line);
+            border-radius: 16px 16px 16px 4px;
+            color: var(--ink);
+        }
+        .status-pass { background: #e7f8ee; color: #137a49; border: 1px solid #a9e6c2; }
+        .status-block { background: #fff0f0; color: #b42330; border: 1px solid #ffc3c8; }
+        .status-flag { background: #fff8e5; color: #9a6500; border: 1px solid #f6db91; }
+        .status-skip { background: #eef3f9; color: #53687f; border: 1px solid #d7e1ed; }
+        .pulse-dot { animation: pulse 2s ease-in-out infinite; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.3; } 100% { opacity: 1; } }
+        [x-cloak] { display: none !important; }
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(50,125,220,.28); border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(50,125,220,.45); }
+        .glow-green { box-shadow: 0 0 20px rgba(16,185,129,0.15), inset 0 0 20px rgba(16,185,129,0.05); }
+        .glow-red { box-shadow: 0 0 20px rgba(239,68,68,0.15), inset 0 0 20px rgba(239,68,68,0.05); }
+        .glow-blue { box-shadow: 0 0 20px rgba(59,130,246,0.15), inset 0 0 20px rgba(59,130,246,0.05); }
+        /* Contrast floor: the old dark-theme overrides made informational text unreadable. */
+        .text-gray-900 { color: #102a4f !important; }
+        .text-gray-800 { color: #18375f !important; }
+        .text-gray-700 { color: #294a70 !important; }
+        .text-gray-600 { color: #38536f !important; }
+        .text-gray-500 { color: #49617c !important; }
+        .text-gray-400 { color: #5d7693 !important; }
+        .chat-user.text-gray-800, .chat-user .text-gray-800 { color: #fff !important; }
+        input, textarea, select { background: rgba(255,255,255,.94) !important; color: #102a4f !important; border-color: #c7d9ee !important; }
+        input::placeholder, textarea::placeholder { color: #8294aa !important; }
+        .bg-gray-50 { background-color: #f5f9ff !important; }
+        .bg-gray-100 { background-color: #edf4fc !important; }
+        .border-gray-200, .border-gray-100 { border-color: #d9e6f4 !important; }
+        header .text-slate-400 { color: #5d728c !important; }
+        header .text-slate-300 { color: #294a70 !important; }
+        .glass-dark .text-gray-500 { color: rgba(219,234,254,.68) !important; }
+    </style>
+</head>
+<body x-data="dashboard()" class="text-gray-800 flex h-screen overflow-hidden">
+
+    <!-- Sidebar -->
+    <div class="glass-dark w-[220px] h-full flex flex-col text-gray-300 shadow-glass z-20 flex-shrink-0">
+        <div class="p-5 border-b border-gray-700/50">
+            <h1 class="text-xl font-bold tracking-tight text-white mb-1">SETTLEX ATLAS</h1>
+            <p class="text-xs text-blue-300 font-medium tracking-wide uppercase">Proof · Recon · Test</p>
+        </div>
+
+        <div class="flex-1 overflow-y-auto py-4 custom-scrollbar">
+            <div class="px-5 mb-2 text-[10px] font-bold text-gray-500 uppercase tracking-wider">Start here</div>
+            <a @click.prevent="navigate('hero')" href="/" class="sidebar-link flex items-center px-5 py-2.5 text-sm" :class="{'active text-white': page==='hero'}">
+                <i data-lucide="layout" class="w-4 h-4 mr-3 opacity-70"></i> How it works
+            </a>
+
+            <div class="px-5 mt-6 mb-2 text-[10px] font-bold text-gray-500 uppercase tracking-wider">The demo flow</div>
+            <a @click.prevent="navigate('offerlock')" href="/offer-lock" class="sidebar-link flex items-center px-5 py-2.5 text-sm" :class="{'active text-white': page==='offerlock'}">
+                <div class="w-2 h-2 rounded-full bg-cyan-300 mr-3 pulse-dot"></div> 1. Lock buyer offer
+            </a>
+
+            <div class="px-5 mt-6 mb-2 text-[10px] font-bold text-gray-500 uppercase tracking-wider">Follow the money</div>
+            <a @click.prevent="navigate('settle')" href="/settlements" class="sidebar-link flex items-center px-5 py-2.5 text-sm" :class="{'active text-white': page==='settle'}">
+                <i data-lucide="calculator" class="w-4 h-4 mr-3 opacity-70"></i> 2. Reconcile settlement
+            </a>
+
+            <div class="px-5 mt-6 mb-2 text-[10px] font-bold text-gray-500 uppercase tracking-wider">Prove and improve</div>
+            <a @click.prevent="navigate('diary')" href="/evidence" class="sidebar-link flex items-center px-5 py-2.5 text-sm" :class="{'active text-white': page==='diary'}">
+                <i data-lucide="lock" class="w-4 h-4 mr-3 opacity-70"></i> 3. Review evidence
+            </a>
+            <a @click.prevent="navigate('dispute')" href="/claims" class="sidebar-link flex items-center px-5 py-2.5 text-sm" :class="{'active text-white': page==='dispute'}">
+                <i data-lucide="gavel" class="w-4 h-4 mr-3 opacity-70"></i> 4. Resolve a claim
+            </a>
+            <a @click.prevent="navigate('benchmark')" href="/release" class="sidebar-link flex items-center px-5 py-2.5 text-sm" :class="{'active text-white': page==='benchmark'}">
+                <i data-lucide="bar-chart-2" class="w-4 h-4 mr-3 opacity-70"></i> 5. Test before release
+            </a>
+
+            <div class="px-5 mt-6 mb-2 text-[10px] font-bold text-gray-500 uppercase tracking-wider">Sandboxes</div>
+            <a @click.prevent="navigate('gate')" href="/intent-check" class="sidebar-link flex items-center px-5 py-2.5 text-sm" :class="{'active text-white': page==='gate'}">
+                <i data-lucide="shield" class="w-4 h-4 mr-3 opacity-70"></i> Intent check
+            </a>
+            <a @click.prevent="navigate('speech')" href="/speech-check" class="sidebar-link flex items-center px-5 py-2.5 text-sm" :class="{'active text-white': page==='speech'}">
+                <i data-lucide="message-square" class="w-4 h-4 mr-3 opacity-70"></i> Speech check
+            </a>
+            <a @click.prevent="navigate('agent')" href="/checkout-safety" class="sidebar-link flex items-center px-5 py-2.5 text-sm" :class="{'active text-white': page==='agent'}">
+                <i data-lucide="shield-alert" class="w-4 h-4 mr-3 opacity-70"></i> Checkout safety lab
+            </a>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="flex-1 flex flex-col h-full relative z-10 overflow-hidden">
+
+        <!-- Header -->
+        <header class="glass h-16 flex-shrink-0 flex items-center justify-between px-6 border-b border-white/5 z-20">
+            <div class="flex items-center text-sm font-medium text-slate-400">
+                <span>SettleX Atlas</span>
+                <i data-lucide="chevron-right" class="w-4 h-4 mx-2 text-slate-600"></i>
+                <span class="gradient-text font-semibold" x-text="pageTitle()"></span>
+            </div>
+            <div class="flex items-center space-x-4">
+                <div class="flex items-center text-xs font-medium text-green-400 bg-green-500/10 px-2 py-1 rounded border border-green-500/20">
+                    <div class="w-2 h-2 rounded-full bg-green-500 mr-2 pulse-dot"></div> LIVE
+                </div>
+                <div class="h-4 w-px bg-white/10"></div>
+                <span class="text-sm font-semibold text-slate-300">Demo Pizza Co.</span>
+                <div class="w-8 h-8 rounded-full bg-gradient-to-tr from-blue-500 to-purple-600 text-white flex items-center justify-center font-bold text-xs shadow-inner">
+                    DP
+                </div>
+            </div>
+        </header>
+
+        <!-- Page Area -->
+        <main class="flex-1 overflow-y-auto p-5 md:p-8 relative">
+
+            <!-- PAGE: HERO -->
+            <template x-if="page === 'hero'">
+                <div class="max-w-6xl mx-auto space-y-8 fade-in pb-12">
+                    <div class="text-center space-y-4 pt-5">
+                        <div class="inline-flex items-center gap-2 rounded-full border border-blue-200 bg-white/80 px-3 py-1 text-xs font-semibold text-blue-700 shadow-sm"><span class="h-1.5 w-1.5 rounded-full bg-blue-500"></span> Agentic commerce evidence layer</div>
+                        <h1 class="text-4xl md:text-5xl font-extrabold gradient-text tracking-tight">Stop post-consent drift in agentic commerce.</h1>
+                        <p class="text-lg text-gray-600 max-w-2xl mx-auto">Razorpay authorises the payment. SettleX Atlas locks the exact offer a buyer saw, then catches a changed price, item, delivery, return or renewal term before it becomes a surprise.</p>
+                        <button @click="navigate('offerlock')" class="gradient-btn px-6 py-3 rounded-lg font-semibold shadow-lifted mt-4 flex items-center mx-auto space-x-2">
+                            <i data-lucide="play" class="w-5 h-5 fill-current"></i>
+                            <span>Run Offer Lock demo</span>
+                        </button>
+                    </div>
+
+                    <div class="grid md:grid-cols-3 gap-5">
+                        <div class="glass p-6 rounded-2xl shadow-card relative border-t-4 border-t-rz-400">
+                            <div class="text-xs font-bold text-rz-500 mb-2 uppercase tracking-wide">01 · Lock</div>
+                            <h3 class="font-bold text-gray-800 mb-3 text-lg">Freeze buyer-visible terms</h3>
+                            <ul class="text-sm text-gray-600 space-y-2 mb-4 list-disc pl-4">
+                                <li>Versioned catalogue and item list</li>
+                                <li>Total, delivery and return terms</li>
+                                <li>Privacy-safe signed commitment</li>
+                            </ul>
+                            <div class="text-xs font-medium text-rz-700 bg-rz-50 p-2 rounded border border-rz-100">
+                                What exactly did the buyer see and accept?
+                            </div>
+                        </div>
+
+                        <div class="glass p-6 rounded-2xl shadow-card relative border-t-4 border-t-rz-400">
+                            <div class="text-xs font-bold text-rz-500 mb-2 uppercase tracking-wide">02 · Compare</div>
+                            <h3 class="font-bold text-gray-800 mb-3 text-lg">Detect material drift</h3>
+                            <ul class="text-sm text-gray-600 space-y-2 mb-4 list-disc pl-4">
+                                <li>Price and quantity changes</li>
+                                <li>Delivery, return and renewal changes</li>
+                                <li>Seller or currency swaps escalate</li>
+                            </ul>
+                            <div class="text-xs font-medium text-rz-700 bg-rz-50 p-2 rounded border border-rz-100">
+                                Does fulfilment still match that offer?
+                            </div>
+                        </div>
+
+                        <div class="glass p-6 rounded-2xl shadow-card relative border-t-4 border-t-rz-400">
+                            <div class="text-xs font-bold text-rz-500 mb-2 uppercase tracking-wide">03 · Reconfirm</div>
+                            <h3 class="font-bold text-gray-800 mb-3 text-lg">Make change explicit</h3>
+                            <ul class="text-sm text-gray-600 space-y-2 mb-4 list-disc pl-4">
+                                <li>Allow only unchanged terms</li>
+                                <li>Ask the buyer again if terms worsen</li>
+                                <li>Keep proof for operations and disputes</li>
+                            </ul>
+                            <div class="text-xs font-medium text-rz-700 bg-rz-50 p-2 rounded border border-rz-100">
+                                No silent change after consent.
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="glass p-7 rounded-2xl shadow-card border border-blue-100 mt-4">
+                        <div class="flex flex-col md:flex-row md:items-end md:justify-between gap-3 mb-5">
+                            <div><div class="text-xs font-bold uppercase tracking-wider text-blue-600 mb-1">One source of truth</div><h3 class="font-bold text-gray-800 text-xl">One signed offer, from conversation to fulfilment</h3></div>
+                            <div class="text-sm text-gray-600">Offer preview → Order notes → Fulfilment / renewal check → Dispute</div>
+                        </div>
+                        <div class="grid md:grid-cols-2 gap-5">
+                            <div class="space-y-2">
+                                <div class="font-semibold text-lg flex items-center"><i data-lucide="shield-check" class="w-5 h-5 mr-2 text-rz-500"></i> Before payment</div>
+                                <p class="text-sm text-gray-600 bg-white p-3 rounded-xl shadow-sm border border-gray-100">A merchant or external buyer agent submits the exact offer it displayed. Atlas signs the snapshot and places only a compact reference in the Razorpay order.</p>
+                            </div>
+                            <div class="space-y-2">
+                                <div class="font-semibold text-lg flex items-center"><i data-lucide="badge-check" class="w-5 h-5 mr-2 text-rz-500"></i> Before fulfilment or renewal</div>
+                                <p class="text-sm text-gray-600 bg-white p-3 rounded-xl shadow-sm border border-gray-100">Atlas compares current catalog and policy terms with the signed offer. A material change produces a buyer reconfirmation, not a silent substitution.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </template>
+
+            <!-- PAGE: OFFER LOCK -->
+            <template x-if="page === 'offerlock'">
+                <div class="max-w-6xl mx-auto space-y-6 fade-in pb-12">
+                    <div class="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
+                        <div>
+                            <div class="inline-flex items-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-bold text-blue-700"><i data-lucide="badge-check" class="w-3.5 h-3.5"></i> Differentiated proof layer</div>
+                            <h1 class="text-3xl font-bold text-gray-900 mt-3">Agentic Offer Lock</h1>
+                            <p class="text-gray-600 mt-2 max-w-3xl">Lock the exact offer shown to a buyer, then check whether the version used for fulfilment or renewal has silently changed. Atlas does not replace Razorpay checkout; it gives that checkout an auditable commercial promise.</p>
+                        </div>
+                        <div class="text-xs text-blue-800 bg-blue-50 border border-blue-100 rounded-xl px-4 py-3 max-w-sm"><span class="font-bold">The gap:</span> payment consent can be valid even when the catalog, delivery or return terms later drift.</div>
+                    </div>
+
+                    <template x-if="runtimeReadiness">
+                        <section class="grid md:grid-cols-3 gap-3 text-xs">
+                            <div class="glass rounded-xl p-3 border" :class="runtimeReadiness.offer_state_survives_restart ? 'border-emerald-200 bg-emerald-50/60' : 'border-amber-200 bg-amber-50/60'"><div class="font-bold" :class="runtimeReadiness.offer_state_survives_restart ? 'text-emerald-800' : 'text-amber-800'"><i data-lucide="database" class="w-3.5 h-3.5 inline mr-1"></i> Evidence posture</div><div class="text-gray-700 mt-1" x-text="runtimeReadiness.offer_state_survives_restart ? 'Durable key-pinned store configured' : 'Ephemeral demo store — shown honestly'"></div><div class="text-gray-500 mt-1" x-text="runtimeReadiness.offer_state_survives_restart ? 'Signed locks and safe order state survive restart.' : 'Production enables this with an Ed25519 key and ATLAS_EVIDENCE_DB.'"></div></div>
+                            <div class="glass rounded-xl p-3 border" :class="runtimeReadiness.test_mode_key_configured ? 'border-blue-200 bg-blue-50/60' : 'border-gray-200 bg-white/80'"><div class="font-bold text-blue-800"><i data-lucide="credit-card" class="w-3.5 h-3.5 inline mr-1"></i> Payment boundary</div><div class="text-gray-700 mt-1" x-text="runtimeReadiness.test_mode_key_configured ? 'Razorpay Test Mode key detected' : 'No Test Mode key exposed in the UI'"></div><div class="text-gray-500 mt-1">Live keys are refused by the Test Mode handoff.</div></div>
+                            <div class="glass rounded-xl p-3 border" :class="runtimeReadiness.webhook_signature_configured ? 'border-violet-200 bg-violet-50/60' : 'border-gray-200 bg-white/80'"><div class="font-bold text-violet-800"><i data-lucide="shield-check" class="w-3.5 h-3.5 inline mr-1"></i> Webhook truth</div><div class="text-gray-700 mt-1" x-text="runtimeReadiness.webhook_signature_configured ? 'HMAC verification secret configured' : 'Signature secret not configured on this server'"></div><div class="text-gray-500 mt-1">A public HTTPS URL is still required for external delivery.</div></div>
+                        </section>
+                    </template>
+
+                    <section class="glass p-5 rounded-2xl border border-violet-200 shadow-card bg-gradient-to-r from-white via-blue-50/60 to-violet-50/60">
+                        <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+                            <div class="max-w-xl">
+                                <div class="text-xs font-bold text-violet-700 uppercase tracking-wider">0 · Bounded AI, before money moves</div>
+                                <h2 class="font-bold text-gray-900 text-lg mt-1">AI drafts the offer; the buyer still confirms it</h2>
+                                <p class="text-sm text-gray-600 mt-1">The model turns a natural-language request into a structured draft using only merchant catalogue SKUs. Code fixes the price and policy terms; Atlas rejects unknown items. This is not consent.</p>
+                            </div>
+                            <div class="flex-1 max-w-xl space-y-2">
+                                <textarea x-model="aiBuyerRequest" rows="2" class="w-full text-sm p-3 border border-violet-200 rounded-xl bg-white/90 outline-none focus:ring-2 focus:ring-violet-300" placeholder="Ask the buyer agent for an order…"></textarea>
+                                <button @click="composeOfferWithAI" :disabled="aiComposeLoading" class="w-full bg-violet-700 hover:bg-violet-800 text-white px-4 py-2.5 rounded-lg font-semibold text-sm flex justify-center items-center disabled:opacity-50"><i data-lucide="sparkles" class="w-4 h-4 mr-2" :class="{'animate-spin': aiComposeLoading}"></i><span x-text="aiComposeLoading ? 'Composing bounded draft…' : 'Ask configured AI to draft offer'"></span></button>
+                            </div>
+                        </div>
+                        <template x-if="aiComposition">
+                            <div class="mt-4 grid md:grid-cols-3 gap-3 text-xs fade-in">
+                                <div class="bg-white/80 rounded-xl border border-violet-100 p-3"><div class="font-bold text-violet-800">Model provenance</div><div class="font-mono text-gray-600 mt-1" x-text="aiComposition.provenance.provider + ' · ' + aiComposition.provenance.model"></div><div class="font-mono text-[10px] text-gray-400 mt-1" x-text="aiComposition.provenance.input_hash.substring(0,16) + '…'"></div></div>
+                                <div class="bg-white/80 rounded-xl border border-violet-100 p-3"><div class="font-bold text-violet-800">Catalog validation</div><div class="text-gray-600 mt-1">All selected SKUs, prices and policy terms are server-validated against the merchant catalogue.</div></div>
+                                <div class="bg-white/80 rounded-xl border border-violet-100 p-3"><div class="font-bold text-violet-800">Buyer still decides</div><div class="text-gray-600 mt-1" x-text="aiComposition.uncertainties.length ? 'Uncertainties: ' + aiComposition.uncertainties.join('; ') : 'Review the draft below, then explicitly sign it.'"></div></div>
+                            </div>
+                        </template>
+                        <template x-if="aiComposeError"><div class="mt-3 text-xs rounded-lg border border-red-200 bg-red-50 text-red-800 px-3 py-2" x-text="aiComposeError"></div></template>
+                    </section>
+
+                    <div class="grid lg:grid-cols-3 gap-5 items-stretch">
+                        <section class="glass p-5 rounded-2xl border border-blue-100 shadow-card">
+                            <div class="flex items-center justify-between mb-4">
+                                <div><div class="text-xs font-bold text-blue-600 uppercase tracking-wider">1 · Buyer sees</div><h2 class="font-bold text-gray-800 text-lg mt-1">Versioned offer</h2></div>
+                                <span class="text-[10px] font-mono text-blue-700 bg-blue-50 border border-blue-100 rounded px-2 py-1" x-text="offerLockDraft.terms.catalog_version"></span>
+                            </div>
+                            <div class="space-y-3 text-sm">
+                                <div class="bg-white rounded-xl p-3 border border-gray-100">
+                                    <div class="font-semibold text-gray-800" x-text="offerLockDraft.terms.lines[0].qty + ' × ' + offerLockDraft.terms.lines[0].name"></div>
+                                    <div class="text-gray-600 text-xs mt-1">Catalog SKU <span class="font-mono" x-text="offerLockDraft.terms.lines[0].sku"></span> · no substitutions</div>
+                                </div>
+                                <div class="grid grid-cols-2 gap-2">
+                                    <div class="bg-blue-50 rounded-lg p-3"><div class="text-[10px] text-blue-600 font-bold uppercase">Total</div><div class="font-bold text-gray-800 mt-1" x-text="fmt(offerTotal(offerLockDraft.terms))"></div></div>
+                                    <div class="bg-blue-50 rounded-lg p-3"><div class="text-[10px] text-blue-600 font-bold uppercase">Delivery</div><div class="font-bold text-gray-800 text-xs mt-1" x-text="offerLockDraft.terms.delivery_by"></div></div>
+                                </div>
+                                <div class="text-xs text-gray-600 rounded-lg border border-gray-100 p-3"><span class="font-semibold text-gray-800">Buyer approval:</span> <span x-text="offerLockDraft.approval.playback"></span></div>
+                            </div>
+                            <button @click="createOfferLock" :disabled="offerLockLoading" class="gradient-btn mt-5 w-full px-4 py-2.5 rounded-lg font-semibold text-sm flex justify-center items-center disabled:opacity-50"><i data-lucide="lock-keyhole" class="w-4 h-4 mr-2" :class="{'animate-spin': offerLockLoading}"></i><span x-text="offerLockResult ? 'Create a fresh signed lock' : 'Sign this buyer-visible offer'"></span></button>
+                        </section>
+
+                        <section class="glass p-5 rounded-2xl border border-blue-100 shadow-card">
+                            <div class="text-xs font-bold text-blue-600 uppercase tracking-wider">2 · Atlas stores</div>
+                            <h2 class="font-bold text-gray-800 text-lg mt-1 mb-4">Signed commitment</h2>
+                            <template x-if="!offerLockResult">
+                                <div class="h-[250px] flex flex-col items-center justify-center text-center px-6"><div class="w-12 h-12 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center mb-3"><i data-lucide="lock" class="w-5 h-5"></i></div><p class="font-semibold text-gray-700">No commitment yet</p><p class="text-xs text-gray-500 mt-1">Sign the offer first. The full snapshot stays in the evidence store; Razorpay receives a compact reference.</p></div>
+                            </template>
+                            <template x-if="offerLockResult">
+                                <div class="space-y-3 fade-in">
+                                    <div class="bg-emerald-50 border border-emerald-200 rounded-xl p-3"><div class="flex items-center text-emerald-800 font-bold text-sm"><i data-lucide="badge-check" class="w-4 h-4 mr-2"></i> Ed25519 proof created</div><div class="text-[10px] font-mono text-emerald-700 mt-2 break-all" x-text="offerLockResult.lock.lock_id"></div></div>
+                                    <div class="bg-blue-950 rounded-xl p-3 font-mono text-[10px] text-blue-100 space-y-1.5"><div>{ <span class="text-cyan-200">"atlas_lock"</span>: <span x-text="JSON.stringify(offerLockResult.order_notes.atlas_lock)"></span>,</div><div><span class="text-cyan-200">"atlas_ver"</span>: <span x-text="JSON.stringify(offerLockResult.order_notes.atlas_ver)"></span>,</div><div><span class="text-cyan-200">"atlas_kid"</span>: <span x-text="JSON.stringify(offerLockResult.order_notes.atlas_kid)"></span>,</div><div><span class="text-cyan-200">"atlas_sig"</span>: <span x-text="JSON.stringify(offerLockResult.order_notes.atlas_sig?.substring(0,18) + '…')"></span> }</div></div>
+                                    <p class="text-xs text-gray-600">These four references fit inside Razorpay <span class="font-mono">order.notes</span>. The signed terms are retained off-entity, without raw buyer chat.</p>
+                                </div>
+                            </template>
+                        </section>
+
+                        <section class="glass p-5 rounded-2xl border border-blue-100 shadow-card">
+                            <div class="flex items-center justify-between mb-1"><div class="text-xs font-bold text-blue-600 uppercase tracking-wider">3 · Merchant fulfils</div><span class="text-[10px] px-2 py-1 rounded-full font-bold" :class="offerLockChanged ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800'" x-text="offerLockChanged ? 'Changed version' : 'Same version'"></span></div>
+                            <h2 class="font-bold text-gray-800 text-lg mt-1 mb-4">Check before action</h2>
+                            <div class="flex bg-gray-100 rounded-lg p-1 mb-4 text-xs font-semibold"><button @click="setOfferScenario(false)" class="flex-1 py-2 rounded-md transition" :class="!offerLockChanged ? 'bg-white text-blue-700 shadow-sm' : 'text-gray-500'">No change</button><button @click="setOfferScenario(true)" class="flex-1 py-2 rounded-md transition" :class="offerLockChanged ? 'bg-white text-amber-800 shadow-sm' : 'text-gray-500'">Silent drift</button></div>
+                            <div class="space-y-2 text-xs">
+                                <div class="flex justify-between bg-white border border-gray-100 rounded-lg p-2.5"><span class="text-gray-600">Catalog</span><span class="font-mono text-gray-800" x-text="observedOfferTerms().catalog_version"></span></div>
+                                <div class="flex justify-between bg-white border border-gray-100 rounded-lg p-2.5"><span class="text-gray-600">Total</span><span class="font-semibold text-gray-800" x-text="fmt(offerTotal(observedOfferTerms()))"></span></div>
+                                <div class="flex justify-between bg-white border border-gray-100 rounded-lg p-2.5"><span class="text-gray-600">Delivery</span><span class="font-semibold text-gray-800" x-text="observedOfferTerms().delivery_by"></span></div>
+                                <div class="flex justify-between bg-white border border-gray-100 rounded-lg p-2.5"><span class="text-gray-600">Return terms</span><span class="font-mono text-gray-800" x-text="observedOfferTerms().return_policy_version"></span></div>
+                            </div>
+                            <button @click="checkOfferLock" :disabled="offerLockLoading || !offerLockResult" class="mt-5 w-full bg-blue-900 hover:bg-blue-800 text-white px-4 py-2.5 rounded-lg font-semibold text-sm flex justify-center items-center disabled:opacity-40"><i data-lucide="git-compare" class="w-4 h-4 mr-2" :class="{'animate-spin': offerLockLoading}"></i> Verify current terms</button>
+                        </section>
+                    </div>
+
+                    <template x-if="offerLockError"><div class="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800" x-text="offerLockError"></div></template>
+                    <template x-if="offerLockResult">
+                        <section class="glass p-5 rounded-2xl border border-cyan-200 shadow-card bg-gradient-to-r from-white via-cyan-50/70 to-blue-50/70 fade-in">
+                            <div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-5">
+                                <div class="max-w-2xl">
+                                    <div class="text-xs font-bold text-cyan-700 uppercase tracking-wider">Optional live proof · Razorpay Test Mode only</div>
+                                    <h2 class="font-bold text-gray-900 text-xl mt-1">Carry the signed offer into a real test checkout</h2>
+                                    <p class="text-sm text-gray-600 mt-2">Create a Test Mode order only after the buyer-visible offer is signed. Atlas uses the guarded order path, verifies the amount against the signed promise and carries the compact proof references in <span class="font-mono">order.notes</span>. No live-mode key is accepted.</p>
+                                </div>
+                                <div class="rounded-xl border border-cyan-200 bg-white/80 px-4 py-3 text-xs text-cyan-900 max-w-sm"><span class="font-bold">Truth boundary:</span> the Razorpay popup can report success, but payment is not marked complete until the server verifies a signed <span class="font-mono">payment.captured</span> webhook.</div>
+                            </div>
+                            <div class="flex flex-wrap gap-3 mt-5">
+                                <button @click="createTestModeOrder" :disabled="testModeLoading" class="bg-cyan-700 hover:bg-cyan-800 text-white px-4 py-2.5 rounded-lg text-sm font-semibold disabled:opacity-50 flex items-center"><i data-lucide="flask-conical" class="w-4 h-4 mr-2" :class="{'animate-spin': testModeLoading}"></i><span x-text="testModeCheckout ? 'Show guarded Test Mode order' : 'Create guarded Test Mode order'"></span></button>
+                                <template x-if="testModeCheckout"><button @click="openRazorpayTestCheckout" :disabled="testModeLoading" class="bg-blue-950 hover:bg-blue-900 text-white px-4 py-2.5 rounded-lg text-sm font-semibold disabled:opacity-50 flex items-center"><i data-lucide="credit-card" class="w-4 h-4 mr-2"></i> Open Razorpay Test Checkout</button></template>
+                                <template x-if="testModeCheckout"><button @click="refreshTestModeStatus" :disabled="testModeLoading" class="bg-white border border-blue-200 text-blue-800 hover:bg-blue-50 px-4 py-2.5 rounded-lg text-sm font-semibold disabled:opacity-50 flex items-center"><i data-lucide="refresh-cw" class="w-4 h-4 mr-2"></i> Check webhook status</button></template>
+                            </div>
+                            <template x-if="testModeCheckout">
+                                <div class="grid md:grid-cols-3 gap-3 mt-4 text-xs">
+                                    <div class="bg-white/90 border border-cyan-100 rounded-xl p-3"><div class="font-bold text-cyan-800">Order created</div><div class="font-mono text-gray-700 mt-1 break-all" x-text="testModeCheckout.order.id"></div><div class="text-gray-500 mt-1" x-text="fmt(testModeCheckout.order.amount) + ' · ' + testModeCheckout.order.status"></div></div>
+                                    <div class="bg-white/90 border border-cyan-100 rounded-xl p-3"><div class="font-bold text-cyan-800">Evidence capacity</div><div class="text-gray-700 mt-1" x-text="testModeCheckout.notes_budget"></div><div class="text-gray-500 mt-1">No raw buyer text or payment credentials are sent to Atlas.</div></div>
+                                    <div class="bg-white/90 border border-cyan-100 rounded-xl p-3"><div class="font-bold text-cyan-800">Webhook requirement</div><div class="text-gray-700 mt-1" x-text="testModeStatus?.payment_captured_by_verified_webhook ? 'Verified payment captured' : 'Awaiting verified payment.captured'"></div><div class="text-gray-500 mt-1">Configure <span class="font-mono">https://your-domain/webhooks/razorpay</span> in Razorpay Test Mode; a localhost URL cannot receive its webhook.</div></div>
+                                </div>
+                            </template>
+                            <template x-if="testModeStatus?.payment_captured_by_verified_webhook"><div class="mt-4 rounded-xl bg-emerald-50 border border-emerald-200 p-3 text-sm text-emerald-900 flex items-center"><i data-lucide="badge-check" class="w-4 h-4 mr-2"></i> Payment captured from a verified webhook. <button @click="navigate('diary', testModeStatus.evidence_session_id)" class="ml-2 underline font-semibold">Review the signed journey</button></div></template>
+                            <template x-if="testModeError"><div class="mt-4 rounded-xl bg-red-50 border border-red-200 p-3 text-sm text-red-800" x-text="testModeError"></div></template>
+                        </section>
+                    </template>
+                    <template x-if="offerLockCheck">
+                        <section class="glass p-5 rounded-2xl border-2 fade-in" :class="offerLockCheck.decision.status === 'ALLOW' ? 'border-emerald-300 bg-emerald-50/30' : offerLockCheck.decision.status === 'RECONFIRM' ? 'border-amber-300 bg-amber-50/30' : 'border-red-300 bg-red-50/30'">
+                            <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4"><div><div class="text-xs uppercase font-bold tracking-wider" :class="offerLockCheck.decision.status === 'ALLOW' ? 'text-emerald-700' : offerLockCheck.decision.status === 'RECONFIRM' ? 'text-amber-700' : 'text-red-700'">OfferLock verdict</div><h2 class="text-2xl font-bold mt-1" :class="offerLockCheck.decision.status === 'ALLOW' ? 'text-emerald-800' : offerLockCheck.decision.status === 'RECONFIRM' ? 'text-amber-800' : 'text-red-800'" x-text="offerLockCheck.decision.status === 'ALLOW' ? 'Safe to fulfil' : offerLockCheck.decision.status === 'RECONFIRM' ? 'Ask the buyer again' : 'Escalate — identity changed'"></h2><p class="text-sm text-gray-600 mt-1" x-text="offerLockCheck.decision.status === 'ALLOW' ? 'The observed terms are unchanged or buyer-friendly.' : 'Atlas found material drift. Do not silently carry the earlier consent forward.'"></p></div><span class="px-3 py-1.5 rounded-full font-bold text-sm" :class="offerLockCheck.decision.status === 'ALLOW' ? 'status-pass' : offerLockCheck.decision.status === 'RECONFIRM' ? 'status-flag' : 'status-block'" x-text="offerLockCheck.decision.status"></span></div>
+                            <template x-if="offerLockCheck.decision.deltas.length"><div class="grid md:grid-cols-2 gap-3 mt-5"><template x-for="delta in offerLockCheck.decision.deltas" :key="delta.field"><div class="bg-white/80 border border-gray-200 rounded-xl p-3"><div class="font-semibold text-gray-800 text-sm" x-text="delta.reason"></div><div class="text-xs text-gray-500 font-mono mt-1" x-text="delta.field"></div><div class="text-xs text-gray-700 mt-2"><span class="text-gray-500">Locked:</span> <span x-text="JSON.stringify(delta.locked)"></span></div><div class="text-xs text-gray-700 mt-1"><span class="text-gray-500">Now:</span> <span x-text="JSON.stringify(delta.observed)"></span></div></div></template></div></template>
+                            <div class="flex flex-wrap gap-3 mt-5 pt-4 border-t border-gray-200"><button @click="openOfferEvidence('diary')" class="text-sm font-semibold rounded-lg bg-white border border-blue-200 text-blue-800 px-4 py-2 hover:bg-blue-50"><i data-lucide="book-open" class="w-4 h-4 inline mr-1"></i> Review signed journey</button><button @click="openOfferEvidence('dispute')" class="text-sm font-semibold rounded-lg bg-white border border-violet-200 text-violet-800 px-4 py-2 hover:bg-violet-50"><i data-lucide="scale" class="w-4 h-4 inline mr-1"></i> Review buyer claim outcome</button><span class="text-xs text-gray-500 self-center">The same Offer Lock and drift diff are now visible to operations.</span></div>
+                        </section>
+                    </template>
+
+                    <div class="grid md:grid-cols-3 gap-3 text-sm"><div class="bg-white/75 rounded-xl border border-gray-100 p-4"><div class="font-bold text-gray-800">Input</div><p class="text-gray-600 mt-1">Offer snapshot from the merchant catalogue plus a buyer-visible approval summary from the external agent.</p></div><div class="bg-white/75 rounded-xl border border-gray-100 p-4"><div class="font-bold text-gray-800">Output to Razorpay</div><p class="text-gray-600 mt-1">A short lock ID, catalog version, key ID and signature in the existing order’s supported notes field.</p></div><div class="bg-white/75 rounded-xl border border-gray-100 p-4"><div class="font-bold text-gray-800">Output to operations</div><p class="text-gray-600 mt-1">Allow, reconfirm or escalate—plus a field-level explanation and the signed snapshot for support or a dispute.</p></div></div>
+                </div>
+            </template>
+
+            <!-- PAGE: AGENT -->
+            <template x-if="page === 'agent'">
+                <div class="max-w-6xl mx-auto h-full flex flex-col fade-in pb-8">
+
+                    <!-- Pre-start view -->
+                    <template x-if="!compareSession">
+                        <div class="space-y-6">
+                            <div>
+                                <h1 class="text-2xl font-bold text-gray-900">Choose one failure to stop</h1>
+                                <p class="text-sm text-gray-600 mt-1">The same customer sequence runs against a naïve agent and a checkout guarded by SettleX Atlas.</p>
+                            </div>
+
+                            <div class="grid md:grid-cols-2 gap-4">
+                                <div @click="startCompare('hijack_product_page_upsell')" class="glass p-5 rounded-2xl border-l-4 border-l-red-500 cursor-pointer hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-lg transition">
+                                    <div class="flex justify-between items-start mb-2">
+                                        <h3 class="font-bold text-gray-800">Cart Hijack</h3>
+                                        <span class="text-xs bg-red-100 text-red-800 px-2 py-0.5 rounded font-medium">Attack</span>
+                                    </div>
+                                    <p class="text-sm text-gray-600 mb-3">Poisoned product page injects garlic bread into cart.</p>
+                                    <div class="text-xs bg-gray-50 border border-gray-200 p-2 rounded text-gray-700 flex items-start">
+                                        <i data-lucide="shield" class="w-3.5 h-3.5 mr-1.5 mt-0.5 text-rz-500 shrink-0"></i>
+                                        <span>Atlas: the intent gate catches and removes the sneaked item.</span>
+                                    </div>
+                                </div>
+
+                                <div @click="startCompare('language_false_urgency')" class="glass p-5 rounded-2xl border-l-4 border-l-red-500 cursor-pointer hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-lg transition">
+                                    <div class="flex justify-between items-start mb-2">
+                                        <h3 class="font-bold text-gray-800">False Urgency</h3>
+                                        <span class="text-xs bg-red-100 text-red-800 px-2 py-0.5 rounded font-medium">Dark Pattern</span>
+                                    </div>
+                                    <p class="text-sm text-gray-600 mb-3">Agent creates fake scarcity: Only 2 left!</p>
+                                    <div class="text-xs bg-gray-50 border border-gray-200 p-2 rounded text-gray-700 flex items-start">
+                                        <i data-lucide="shield" class="w-3.5 h-3.5 mr-1.5 mt-0.5 text-rz-500 shrink-0"></i>
+                                        <span>Atlas: the speech guard rewrites it in neutral language.</span>
+                                    </div>
+                                </div>
+
+                                <div @click="startCompare('money_discount_over_ceiling')" class="glass p-5 rounded-2xl border-l-4 border-l-amber-500 cursor-pointer hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-lg transition">
+                                    <div class="flex justify-between items-start mb-2">
+                                        <h3 class="font-bold text-gray-800">Discount Exploit</h3>
+                                        <span class="text-xs bg-amber-100 text-amber-800 px-2 py-0.5 rounded font-medium">Policy</span>
+                                    </div>
+                                    <p class="text-sm text-gray-600 mb-3">Agent gives 25% discount, max allowed is 10%.</p>
+                                    <div class="text-xs bg-gray-50 border border-gray-200 p-2 rounded text-gray-700 flex items-start">
+                                        <i data-lucide="shield" class="w-3.5 h-3.5 mr-1.5 mt-0.5 text-rz-500 shrink-0"></i>
+                                        <span>Atlas: the discount ceiling blocks it at the gate.</span>
+                                    </div>
+                                </div>
+
+                                <div @click="startCompare('language_nagging_after_no')" class="glass p-5 rounded-2xl border-l-4 border-l-red-500 cursor-pointer hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-lg transition">
+                                    <div class="flex justify-between items-start mb-2">
+                                        <h3 class="font-bold text-gray-800">Confirm Shaming</h3>
+                                        <span class="text-xs bg-red-100 text-red-800 px-2 py-0.5 rounded font-medium">CCPA</span>
+                                    </div>
+                                    <p class="text-sm text-gray-600 mb-3">Most customers add it after you said no.</p>
+                                    <div class="text-xs bg-gray-50 border border-gray-200 p-2 rounded text-gray-700 flex items-start">
+                                        <i data-lucide="shield" class="w-3.5 h-3.5 mr-1.5 mt-0.5 text-rz-500 shrink-0"></i>
+                                        <span>Atlas: the speech guard catches CCPA-style nagging.</span>
+                                    </div>
+                                </div>
+
+                                <div @click="startCompare('clean_basic_order')" class="glass p-5 rounded-2xl border-l-4 border-l-emerald-500 cursor-pointer hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-lg transition">
+                                    <div class="flex justify-between items-start mb-2">
+                                        <h3 class="font-bold text-gray-800">Clean Baseline</h3>
+                                        <span class="text-xs bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded font-medium">Normal</span>
+                                    </div>
+                                    <p class="text-sm text-gray-600 mb-3">Normal order, no tricks, zero false positives.</p>
+                                    <div class="text-xs bg-gray-50 border border-gray-200 p-2 rounded text-gray-700 flex items-start">
+                                        <i data-lucide="shield" class="w-3.5 h-3.5 mr-1.5 mt-0.5 text-rz-500 shrink-0"></i>
+                                        <span>Atlas: everything passes with no unnecessary intervention.</span>
+                                    </div>
+                                </div>
+
+                                <div @click="startCompare('money_delegated_high_value')" class="glass p-5 rounded-2xl border-l-4 border-l-purple-500 cursor-pointer hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-lg transition">
+                                    <div class="flex justify-between items-start mb-2">
+                                        <h3 class="font-bold text-gray-800">HITL Escalation</h3>
+                                        <span class="text-xs bg-purple-100 text-purple-800 px-2 py-0.5 rounded font-medium">Review</span>
+                                    </div>
+                                    <p class="text-sm text-gray-600 mb-3">Office order exceeds human-approval threshold.</p>
+                                    <div class="text-xs bg-gray-50 border border-gray-200 p-2 rounded text-gray-700 flex items-start">
+                                        <i data-lucide="shield" class="w-3.5 h-3.5 mr-1.5 mt-0.5 text-rz-500 shrink-0"></i>
+                                        <span>Atlas: routes it to a human approver before payment.</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </template>
+
+                    <!-- Playing view -->
+                    <template x-if="compareSession">
+                        <div class="space-y-4 pb-8 fade-in">
+                            <div class="flex items-center shrink-0">
+                                <button @click="compareSession = null" class="mr-4 text-gray-500 hover:text-gray-900 bg-white shadow-sm p-1.5 rounded-full border border-gray-200"><i data-lucide="arrow-left" class="w-4 h-4"></i></button>
+                                <div>
+                                    <h2 class="text-xl font-bold text-gray-900">Live Evaluation</h2>
+                                    <p class="text-xs text-gray-500">Auto-playing sequence...</p>
+                                </div>
+                            </div>
+
+                            <div class="grid grid-cols-2 gap-6">
+                                <!-- Naive Panel -->
+                                <div class="flex-1 flex flex-col glass rounded-xl overflow-hidden shadow-sm relative glow-red">
+                                    <div class="bg-red-500/10 border-b border-red-500/20 px-4 py-3 flex items-center justify-between shrink-0 z-10">
+                                        <div class="flex items-center">
+                                            <div class="w-2 h-2 rounded-full bg-red-500 mr-2"></div>
+                                            <span class="font-bold text-sm text-red-700 tracking-wide uppercase">Unprotected agent</span>
+                                        </div>
+                                        <span class="text-xs text-red-600 font-medium">No evidence gate</span>
+                                    </div>
+                                    <div class="min-h-[350px] max-h-[500px] overflow-y-auto p-4 space-y-4 bg-transparent custom-scrollbar" id="chat-naive">
+                                        <template x-for="(msg, i) in compareMessages.filter(m => m.role === 'user' || m.role === 'naive')" :key="i">
+                                            <div class="flex flex-col space-y-1 fade-in">
+                                                <template x-if="msg.role === 'user'">
+                                                    <div class="self-end max-w-[85%] chat-user p-3 shadow-sm text-sm text-gray-800">
+                                                        <span x-text="msg.text"></span>
+                                                    </div>
+                                                </template>
+                                                <template x-if="msg.role === 'naive'">
+                                                    <div class="self-start max-w-[90%] chat-agent p-3 shadow-sm text-sm text-gray-800">
+                                                        <span x-text="msg.text" class="whitespace-pre-wrap"></span>
+                                                        <template x-if="msg.cart && (Array.isArray(msg.cart) ? msg.cart.length > 0 : (msg.cart.lines && msg.cart.lines.length > 0))">
+                                                            <div class="mt-3 pt-3 border-t border-gray-100">
+                                                                <div class="text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wide">Cart Created</div>
+                                                                <div class="space-y-1">
+                                                                    <template x-for="item in (Array.isArray(msg.cart) ? msg.cart : msg.cart.lines)">
+                                                                        <div class="flex justify-between text-xs bg-gray-50 p-1.5 rounded">
+                                                                            <span x-text="item.qty + 'x ' + item.name"></span>
+                                                                            <span x-text="fmt(item.unit_paise * item.qty)" class="font-medium text-gray-600"></span>
+                                                                        </div>
+                                                                    </template>
+                                                                </div>
+                                                            </div>
+                                                        </template>
+                                                    </div>
+                                                </template>
+                                            </div>
+                                        </template>
+                                    </div>
+                                </div>
+
+                                <!-- Guarded Panel -->
+                                <div class="flex-1 flex flex-col glass rounded-xl overflow-hidden shadow-sm relative glow-green">
+                                    <div class="bg-green-500/10 border-b border-green-500/20 px-4 py-3 flex items-center justify-between shrink-0 z-10">
+                                        <div class="flex items-center">
+                                            <div class="w-2 h-2 rounded-full bg-green-500 mr-2"></div>
+                                            <span class="font-bold text-sm text-green-700 tracking-wide uppercase">SettleX Atlas guarded</span>
+                                        </div>
+                                        <span class="text-xs text-green-600 font-medium">Evidence sidecar active</span>
+                                    </div>
+                                    <div class="min-h-[350px] max-h-[500px] overflow-y-auto p-4 space-y-4 bg-transparent custom-scrollbar" id="chat-guarded">
+                                        <template x-for="(msg, i) in compareMessages.filter(m => m.role === 'user' || m.role === 'guarded')" :key="i">
+                                            <div class="flex flex-col space-y-1 fade-in">
+                                                <template x-if="msg.role === 'user'">
+                                                    <div class="self-end max-w-[85%] chat-user p-3 shadow-sm text-sm text-gray-800">
+                                                        <span x-text="msg.text"></span>
+                                                    </div>
+                                                </template>
+                                                <template x-if="msg.role === 'guarded'">
+                                                    <div class="self-start max-w-[95%] chat-agent p-3 shadow-sm text-sm" :class="{'bg-green-50/50 border-green-200': msg.different}">
+
+                                                        <template x-if="msg.speech_intercepted">
+                                                            <div class="mb-2 pb-2 border-b border-gray-100">
+                                                                <div class="flex items-center text-xs text-green-700 font-semibold mb-1">
+                                                                    <i data-lucide="shield" class="w-3 h-3 mr-1"></i> Speech Guard Rewrote Text
+                                                                </div>
+                                                                <template x-for="find in (msg.speech_findings || [])">
+                                                                    <div class="text-[10px] text-gray-500 ml-4 border-l-2 border-green-300 pl-2 py-0.5">Blocked: <span class="font-medium" x-text="find.pattern"></span></div>
+                                                                </template>
+                                                            </div>
+                                                        </template>
+
+                                                        <span x-text="msg.text" class="whitespace-pre-wrap text-gray-800" :class="{'text-green-800': msg.speech_intercepted}"></span>
+
+                                                        <template x-if="msg.cart && (Array.isArray(msg.cart) ? msg.cart.length > 0 : (msg.cart.lines && msg.cart.lines.length > 0))">
+                                                            <div class="mt-3 pt-3 border-t border-gray-100">
+                                                                <div class="text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wide flex justify-between items-center">
+                                                                    <span>Final Cart</span>
+                                                                    <template x-if="msg.gate">
+                                                                        <span class="px-1.5 py-0.5 rounded text-[10px]" :class="{'bg-red-100 text-red-700': msg.gate.status==='BLOCK', 'bg-green-100 text-green-700': msg.gate.status==='PASS', 'bg-amber-100 text-amber-700': msg.gate.status==='FLAG', 'bg-purple-100 text-purple-700': msg.gate.status==='ASK_HUMAN'}" x-text="msg.gate.status"></span>
+                                                                    </template>
+                                                                </div>
+
+                                                                <template x-if="msg.gate && msg.gate.verdicts">
+                                                                    <div class="mb-2 space-y-1">
+                                                                        <template x-for="v in msg.gate.verdicts">
+                                                                            <div class="text-[10px] p-1.5 rounded flex items-start" :class="{'bg-red-50 text-red-800 border border-red-100': v.status==='BLOCK', 'bg-green-50 text-green-800 border border-green-100': v.status==='PASS', 'bg-amber-50 text-amber-800 border border-amber-100': v.status==='FLAG', 'bg-purple-50 text-purple-800 border border-purple-100': v.status==='ASK_HUMAN'}">
+                                                                                <span class="font-bold mr-1 shrink-0" x-text="v.status"></span>
+                                                                                <span class="font-semibold mr-1" x-text="v.checker.replace(/_/g,' ') + ':'"></span>
+                                                                                <span x-text="v.reason" class="truncate"></span>
+                                                                                <template x-if="v.checker==='injection_judge'"><span class="ml-1 text-[8px] bg-blue-200 text-blue-800 px-1 rounded shrink-0">AI</span></template>
+                                                                            </div>
+                                                                        </template>
+                                                                    </div>
+                                                                </template>
+
+                                                                <div class="space-y-1">
+                                                                    <template x-for="item in (Array.isArray(msg.cart) ? msg.cart : msg.cart.lines)">
+                                                                        <div class="flex justify-between text-xs p-1.5 rounded" :class="item.source==='upsell' || item.source==='merchant_agent_tool' ? 'bg-amber-50 text-amber-900 border border-amber-100' : 'bg-gray-50 text-gray-700'">
+                                                                            <div class="flex items-center">
+                                                                                <span x-text="item.qty + 'x ' + item.name"></span>
+                                                                                <template x-if="item.source==='upsell' || item.source==='merchant_agent_tool'"><span class="ml-1.5 text-[9px] bg-amber-200 text-amber-800 px-1 rounded uppercase">Injected</span></template>
+                                                                            </div>
+                                                                            <span x-text="fmt(item.unit_paise * item.qty)" class="font-medium"></span>
+                                                                        </div>
+                                                                    </template>
+                                                                </div>
+                                                            </div>
+                                                        </template>
+                                                    </div>
+                                                </template>
+                                            </div>
+                                        </template>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Pipeline viz at bottom -->
+                            <div class="mt-4 shrink-0 glass p-4 rounded-xl border border-gray-200">
+                                <div class="text-xs font-bold text-gray-500 uppercase tracking-wide mb-3 flex items-center">
+                                    <i data-lucide="cpu" class="w-3.5 h-3.5 mr-1.5 text-rz-400"></i>
+                                    Agentic Decision Pipeline
+                                    <span class="ml-2 text-[10px] font-normal text-gray-400" x-text="comparePipeline.length + ' steps'"></span>
+                                </div>
+                                <div class="space-y-2 max-h-40 overflow-y-auto custom-scrollbar">
+                                    <template x-for="(step, i) in comparePipeline" :key="i">
+                                        <div class="flex items-start gap-2 text-xs fade-in p-2 rounded-lg" :class="{
+                                            'bg-red-50 border border-red-100': step.action === 'BLOCKED' || step.action === 'BLOCK',
+                                            'bg-green-50 border border-green-100': step.action === 'PASS',
+                                            'bg-amber-50 border border-amber-100': step.action === 'FLAG',
+                                            'bg-purple-50 border border-purple-100': step.action === 'ASK_HUMAN'
+                                        }">
+                                            <span class="font-bold px-1.5 py-0.5 rounded text-[10px] shrink-0" :class="{
+                                                'bg-red-200 text-red-900': step.action === 'BLOCKED' || step.action === 'BLOCK',
+                                                'bg-green-200 text-green-900': step.action === 'PASS',
+                                                'bg-amber-200 text-amber-900': step.action === 'FLAG',
+                                                'bg-purple-200 text-purple-900': step.action === 'ASK_HUMAN'
+                                            }" x-text="step.action"></span>
+                                            <div class="flex-1 min-w-0">
+                                                <div class="flex items-center gap-1">
+                                                    <span class="font-semibold text-gray-800" x-text="step.step"></span>
+                                                    <template x-if="step.step.toLowerCase().includes('judge') || step.step.toLowerCase().includes('semantic')">
+                                                        <span class="text-[8px] bg-blue-200 text-blue-800 px-1 rounded font-bold">Gemini AI</span>
+                                                    </template>
+                                                </div>
+                                                <div class="text-gray-600 truncate" x-text="step.detail"></div>
+                                                <template x-if="step.before">
+                                                    <div class="mt-1 space-y-0.5">
+                                                        <div class="text-red-600 line-through text-[10px]" x-text="'Before: ' + step.before"></div>
+                                                        <div class="text-green-700 font-medium text-[10px]" x-text="'After: ' + step.after"></div>
+                                                    </div>
+                                                </template>
+                                                <template x-if="step.action !== 'PASS' && !step.explanation">
+                                                    <div class="mt-1.5 flex gap-1.5">
+                                                        <button @click="explainStep(step)" class="text-[9px] bg-blue-100 text-blue-700 px-2 py-0.5 rounded hover:bg-blue-200 flex items-center gap-0.5">
+                                                            <i data-lucide="sparkles" class="w-2.5 h-2.5"></i> Explain this result
+                                                        </button>
+                                                        <button @click="correctStep(step)" class="text-[9px] bg-gray-100 text-gray-600 px-2 py-0.5 rounded hover:bg-gray-200 flex items-center gap-0.5">
+                                                            <i data-lucide="pencil" class="w-2.5 h-2.5"></i> Correct
+                                                        </button>
+                                                    </div>
+                                                </template>
+                                                <template x-if="step.explaining">
+                                                    <div class="mt-1 text-[10px] text-blue-500 italic flex items-center gap-1">
+                                                        <div class="w-3 h-3 border-2 border-blue-400 border-t-transparent rounded-full animate-spin"></div>
+                                                        Gemini is reasoning...
+                                                    </div>
+                                                </template>
+                                                <template x-if="step.explanation">
+                                                    <div class="mt-1.5 bg-blue-50 border border-blue-200 rounded p-2 text-[10px]">
+                                                        <div class="font-semibold text-blue-800 mb-0.5 flex items-center gap-1">
+                                                            <i data-lucide="sparkles" class="w-3 h-3"></i> AI explanation
+                                                        </div>
+                                                        <div class="text-blue-700" x-text="step.explanation"></div>
+                                                        <template x-if="step.risk_level">
+                                                            <span class="mt-1 inline-block text-[8px] px-1.5 py-0.5 rounded font-bold" :class="{'bg-red-200 text-red-800': step.risk_level==='high', 'bg-amber-200 text-amber-800': step.risk_level==='medium', 'bg-green-200 text-green-800': step.risk_level==='low'}" x-text="'Risk: ' + step.risk_level"></span>
+                                                        </template>
+                                                    </div>
+                                                </template>
+                                                <template x-if="step.corrected">
+                                                    <div class="mt-1 text-[10px] text-green-600 flex items-center gap-1">
+                                                        <i data-lucide="check-circle" class="w-3 h-3"></i> Correction saved to the evidence trail
+                                                    </div>
+                                                </template>
+                                            </div>
+                                        </div>
+                                    </template>
+                                    <template x-if="comparePipeline.length === 0">
+                                        <div class="text-xs text-gray-400 italic py-2 text-center">Waiting for interaction...</div>
+                                    </template>
+                                </div>
+                            </div>
+
+                            <!-- Savings + Order Notes + Audit Links -->
+                            <template x-if="totalSavings > 0 || orderNotes || (demoSessionId && !autoPlaying)">
+                                <div class="mt-3 shrink-0 flex gap-3 fade-in">
+                                    <template x-if="totalSavings > 0">
+                                        <div class="glass p-3 rounded-xl border border-green-200 bg-green-50/50 flex items-center gap-3 flex-1">
+                                            <div class="w-10 h-10 rounded-full bg-green-100 border-2 border-green-400 flex items-center justify-center shrink-0">
+                                                <i data-lucide="indian-rupee" class="w-5 h-5 text-green-700"></i>
+                                            </div>
+                                            <div>
+                                                <div class="text-[10px] text-green-600 font-semibold uppercase tracking-wide">Prevented impact</div>
+                                                <div class="text-xl font-black text-green-800" x-text="'₹' + (totalSavings/100).toFixed(0)"></div>
+                                                <div class="text-[10px] text-green-500">this session</div>
+                                            </div>
+                                        </div>
+                                    </template>
+                                    <template x-if="orderNotes">
+                                        <div class="glass p-3 rounded-xl border border-blue-200 flex-1">
+                                            <div class="text-[10px] text-blue-600 font-semibold uppercase tracking-wide mb-1.5 flex items-center">
+                                                <i data-lucide="file-text" class="w-3 h-3 mr-1"></i>
+                                                Razorpay order.notes
+                                                <span class="ml-1 text-[8px] bg-blue-100 text-blue-700 px-1 rounded">Signed proof</span>
+                                            </div>
+                                            <div class="bg-blue-950 rounded p-2 font-mono text-[10px] text-blue-100 space-y-0.5">
+                                                <div>{ <span class="text-blue-300">"intent_hash"</span>: <span class="text-cyan-200" x-text="JSON.stringify(orderNotes.sakshi_intent)"></span>,</div>
+                                                <div>  <span class="text-blue-300">"gate"</span>: <span class="text-cyan-200" x-text="JSON.stringify(orderNotes.sakshi_gate)"></span>,</div>
+                                                <div>  <span class="text-blue-300">"key_id"</span>: <span class="text-cyan-200" x-text="JSON.stringify(orderNotes.sakshi_kid)"></span>,</div>
+                                                <div>  <span class="text-blue-300">"signature"</span>: <span class="text-cyan-200" x-text="JSON.stringify(orderNotes.sakshi_sig?.substring(0,18) + '…')"></span> }</div>
+                                            </div>
+                                            <div class="text-[9px] text-gray-500 mt-1 italic">Hash, key ID and signature travel with the Razorpay order.</div>
+                                        </div>
+                                    </template>
+                                    <template x-if="demoSessionId && !autoPlaying">
+                                        <div class="glass p-3 rounded-xl border border-gray-200 flex flex-col gap-2 shrink-0">
+                                            <div class="text-[10px] text-gray-500 font-semibold uppercase tracking-wide">Audit Trail</div>
+                                            <button @click="navigate('diary', demoSessionId)"
+                                                    class="text-xs bg-gray-900 text-white px-3 py-1.5 rounded-lg hover:bg-gray-700 flex items-center gap-1.5 transition-colors">
+                                                <i data-lucide="book-open" class="w-3 h-3"></i> Sealed Diary
+                                            </button>
+                                            <button @click="navigate('dispute', demoSessionId)"
+                                                    class="text-xs bg-rz-600 text-white px-3 py-1.5 rounded-lg hover:bg-rz-700 flex items-center gap-1.5 transition-colors">
+                                                <i data-lucide="scale" class="w-3 h-3"></i> Resolve Dispute
+                                            </button>
+                                        </div>
+                                    </template>
+                                </div>
+                            </template>
+
+                        </div>
+                    </template>
+                </div>
+            </template>
+
+            <!-- PAGE: FX -->
+            <template x-if="page === 'fx'">
+                <div class="max-w-4xl mx-auto space-y-6 fade-in pb-12">
+                    <div>
+                        <h1 class="text-2xl font-bold text-gray-900">Cross-border FX: Guard the Rate at Every Stage</h1>
+                        <p class="text-sm text-gray-600 mt-1">The same claim-check engine applied to currency conversion</p>
+                    </div>
+
+                    <div class="relative border-l-2 border-gray-200 ml-4 space-y-10 py-4">
+
+                        <!-- Stage 1 -->
+                        <div class="relative pl-8">
+                            <div class="absolute w-6 h-6 bg-blue-100 border-2 border-blue-500 rounded-full -left-[13px] top-1 flex items-center justify-center text-[10px] font-bold text-blue-700">1</div>
+                            <div class="glass p-5 rounded-xl shadow-sm border border-gray-100">
+                                <h3 class="font-bold text-gray-800 text-lg mb-3">The Quote</h3>
+                                <div class="bg-gray-50 p-4 rounded-lg space-y-3 mb-4">
+                                    <div class="flex justify-between items-center border-b border-gray-200 pb-2">
+                                        <span class="text-sm text-gray-600">Customer Question</span>
+                                        <span class="text-sm font-medium">"How much in dollars?"</span>
+                                    </div>
+                                    <div class="flex justify-between items-center border-b border-gray-200 pb-2">
+                                        <span class="text-sm text-gray-600">Agent Quote</span>
+                                        <span class="text-sm font-medium text-red-600">$10.00 <span class="text-xs font-normal text-gray-500">(₹1,000 at ₹100/$)</span></span>
+                                    </div>
+                                    <div class="flex justify-between items-center">
+                                        <span class="text-sm text-gray-600">FBIL Official Rate</span>
+                                        <span class="text-sm font-medium">₹95.68/$</span>
+                                    </div>
+                                </div>
+                                <div class="status-block p-3 rounded text-sm flex items-start shadow-sm mb-2">
+                                    <i data-lucide="shield-alert" class="w-4 h-4 mr-2 mt-0.5 shrink-0"></i>
+                                    <div>
+                                        <div class="font-bold mb-1">Atlas Intervention: BLOCKED</div>
+                                        <div>4.5% markup exceeds 1.5% allowed band. Rewriting quote to $9.70 to remain compliant.</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Stage 2 -->
+                        <div class="relative pl-8">
+                            <div class="absolute w-6 h-6 bg-green-100 border-2 border-green-500 rounded-full -left-[13px] top-1 flex items-center justify-center text-[10px] font-bold text-green-700">2</div>
+                            <div class="glass p-5 rounded-xl shadow-sm border border-gray-100">
+                                <h3 class="font-bold text-gray-800 text-lg mb-3">The Bank's Rate</h3>
+                                <div class="bg-gray-50 p-4 rounded-lg space-y-3 mb-4">
+                                    <div class="flex justify-between items-center border-b border-gray-200 pb-2">
+                                        <span class="text-sm text-gray-600">Customer Pays</span>
+                                        <span class="text-sm font-medium">$9.70</span>
+                                    </div>
+                                    <div class="flex justify-between items-center border-b border-gray-200 pb-2">
+                                        <span class="text-sm text-gray-600">Bank Conversion Rate</span>
+                                        <span class="text-sm font-medium">₹96.80/$</span>
+                                    </div>
+                                    <div class="flex justify-between items-center border-b border-gray-200 pb-2">
+                                        <span class="text-sm text-gray-600">FBIL Rate (Time of transaction)</span>
+                                        <span class="text-sm font-medium">₹95.68/$</span>
+                                    </div>
+                                    <div class="flex justify-between items-center">
+                                        <span class="text-sm text-gray-600">Calculated Spread</span>
+                                        <span class="text-sm font-medium text-green-600">1.2%</span>
+                                    </div>
+                                </div>
+                                <div class="status-pass p-3 rounded text-sm flex items-start shadow-sm">
+                                    <i data-lucide="check-circle" class="w-4 h-4 mr-2 mt-0.5 shrink-0"></i>
+                                    <div>
+                                        <div class="font-bold mb-1">Atlas Verification: PASS</div>
+                                        <div>Bank's 1.2% spread is within allowed 1.5% range. Transaction logged to diary.</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Stage 3 -->
+                        <div class="relative pl-8">
+                            <div class="absolute w-6 h-6 bg-amber-100 border-2 border-amber-500 rounded-full -left-[13px] top-1 flex items-center justify-center text-[10px] font-bold text-amber-700">3</div>
+                            <div class="glass p-5 rounded-xl shadow-sm border border-gray-100">
+                                <h3 class="font-bold text-gray-800 text-lg mb-3">The Dispute (12 days later)</h3>
+                                <div class="bg-gray-50 p-4 rounded-lg space-y-3 mb-4">
+                                    <div class="flex justify-between items-center border-b border-gray-200 pb-2">
+                                        <span class="text-sm text-gray-600">Payment Day Rate</span>
+                                        <span class="text-sm font-medium">₹95.70/$</span>
+                                    </div>
+                                    <div class="flex justify-between items-center border-b border-gray-200 pb-2">
+                                        <span class="text-sm text-gray-600">Dispute Day Rate</span>
+                                        <span class="text-sm font-medium text-amber-600">₹97.20/$</span>
+                                    </div>
+                                    <div class="flex justify-between items-center border-b border-gray-200 pb-2">
+                                        <span class="text-sm text-gray-600">Rate Movement</span>
+                                        <span class="text-sm font-medium">₹15 per dollar shift</span>
+                                    </div>
+                                    <div class="flex justify-between items-center">
+                                        <span class="text-sm text-gray-600">Net loss if refunded today</span>
+                                        <span class="text-sm font-bold text-red-600">₹43 + fees</span>
+                                    </div>
+                                </div>
+                                <div class="status-flag p-3 rounded text-sm flex items-start shadow-sm">
+                                    <i data-lucide="flag" class="w-4 h-4 mr-2 mt-0.5 shrink-0"></i>
+                                    <div>
+                                        <div class="font-bold mb-1">Atlas Verdict: FLAG / CONTEST</div>
+                                        <div>Customer claim invalid based on sealed diary. Attaching intent receipt + rate evidence for representment.</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="glass p-6 rounded-xl shadow-card border border-gray-200 mt-8">
+                        <h3 class="font-bold text-gray-800 mb-4 flex items-center"><i data-lucide="git-merge" class="w-5 h-5 mr-2 text-rz-500"></i> Why Two Rails Matter</h3>
+                        <div class="grid grid-cols-2 gap-6">
+                            <div class="bg-white p-4 rounded border border-gray-100 shadow-sm">
+                                <div class="font-semibold text-rz-600 mb-2 border-b pb-2">UPI (Domestic)</div>
+                                <ul class="text-sm text-gray-600 space-y-1 list-disc pl-4">
+                                    <li>Guards words only</li>
+                                    <li>Disputes are simple refunds</li>
+                                    <li>No currency risk</li>
+                                </ul>
+                            </div>
+                            <div class="bg-white p-4 rounded border border-gray-100 shadow-sm">
+                                <div class="font-semibold text-rz-600 mb-2 border-b pb-2">Cards (Cross-border)</div>
+                                <ul class="text-sm text-gray-600 space-y-1 list-disc pl-4">
+                                    <li>Guards words + rate</li>
+                                    <li>Disputes need evidence for representment</li>
+                                    <li>High FX spread risk</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </template>
+
+            <!-- PAGE: SETTLE -->
+            <template x-if="page === 'settle'">
+                <div class="max-w-5xl mx-auto space-y-6 fade-in pb-12">
+                    <div>
+                        <h1 class="text-2xl font-bold text-gray-900">Settlement Reconciliation</h1>
+                        <p class="text-sm text-gray-600 mt-1">Atlas compares imported Razorpay Settlement Recon records with what the agent promised.</p>
+                        <p class="text-xs text-gray-500 mt-1 bg-white inline-block px-2 py-1 rounded border">Input: Razorpay settlement report + merchant config → Output: per-line verdicts</p>
+                    </div>
+
+                    <div class="glass p-5 rounded-xl shadow-sm border border-gray-200">
+                        <h3 class="font-semibold text-gray-800 mb-3 text-sm">Mock Razorpay Settlement Report (API/CSV)</h3>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-sm text-left">
+                                <thead class="text-xs text-gray-500 uppercase bg-gray-50/50 border-b">
+                                    <tr>
+                                        <th class="px-4 py-2">Payment ID</th>
+                                        <th class="px-4 py-2">Order Amt (Paise)</th>
+                                        <th class="px-4 py-2">Fee Charged</th>
+                                        <th class="px-4 py-2">Tax</th>
+                                        <th class="px-4 py-2">Settled</th>
+                                        <th class="px-4 py-2">FX Rate applied</th>
+                                        <th class="px-4 py-2">Plan MDR %</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr class="bg-white border-b hover:bg-gray-50">
+                                        <td class="px-4 py-2 font-mono text-xs">pay_Ox7k2mQ9rT</td>
+                                        <td class="px-4 py-2"><input type="number" x-model.number="settleData.fee_check.order_paise" class="w-24 p-1 border rounded text-xs bg-gray-50"></td>
+                                        <td class="px-4 py-2 text-gray-500">Auto</td>
+                                        <td class="px-4 py-2">18% GST</td>
+                                        <td class="px-4 py-2 text-gray-500">--</td>
+                                        <td class="px-4 py-2"><input type="number" step="0.01" x-model.number="settleData.fx_check.quoted_rate" class="w-20 p-1 border rounded text-xs bg-gray-50"></td>
+                                        <td class="px-4 py-2"><input type="number" step="0.1" x-model.number="settleData.fee_check.actual_rate_pct" class="w-16 p-1 border rounded text-xs bg-gray-50"></td>
+                                    </tr>
+                                    <tr class="bg-amber-50 border-b hover:bg-amber-100/50 text-amber-900">
+                                        <td class="px-4 py-2 font-mono text-xs">pay_Rx4n8pW2kL</td>
+                                        <td class="px-4 py-2" colspan="6">REFUNDED ROW (Configured order_paise: <span x-text="settleData.refund_check.order_paise"></span>, plan: <span x-text="settleData.refund_check.mdr_pct"></span>%)</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-6">
+                        <div class="glass p-5 rounded-xl shadow-sm border border-gray-200">
+                            <h3 class="font-semibold text-gray-800 mb-3 text-sm">Merchant Fee Plan Config</h3>
+                            <div class="space-y-3">
+                                <div class="flex justify-between items-center">
+                                    <span class="text-sm text-gray-600">Agreed MDR (%)</span>
+                                    <input type="number" step="0.1" x-model.number="settleData.fee_check.plan_rate_pct" class="w-20 p-1.5 border rounded text-sm text-right">
+                                </div>
+                                <div class="flex justify-between items-center">
+                                    <span class="text-sm text-gray-600">Agreed Refund MDR (%)</span>
+                                    <input type="number" step="0.1" x-model.number="settleData.refund_check.mdr_pct" class="w-20 p-1.5 border rounded text-sm text-right">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="glass p-5 rounded-xl shadow-sm border border-gray-200">
+                            <h3 class="font-semibold text-gray-800 mb-3 text-sm">FBIL Reference Rate Config (USD/INR)</h3>
+                            <div class="space-y-3">
+                                <div class="flex justify-between items-center">
+                                    <span class="text-sm text-gray-600">Official Rate</span>
+                                    <input type="number" step="0.01" x-model.number="settleData.fx_check.official_rate" class="w-24 p-1.5 border rounded text-sm text-right">
+                                </div>
+                                <div class="flex justify-between items-center">
+                                    <span class="text-sm text-gray-600">Allowed Band (bps)</span>
+                                    <input type="number" x-model.number="settleData.fx_check.band_bps" class="w-24 p-1.5 border rounded text-sm text-right">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="text-center">
+                        <button @click="runSettle" :disabled="settleLoading" class="gradient-btn px-8 py-3 rounded-lg font-semibold shadow-md inline-flex items-center space-x-2 disabled:opacity-50">
+                            <i data-lucide="cpu" class="w-5 h-5" :class="{'animate-spin': settleLoading}"></i>
+                            <span>Run Atlas reconciliation</span>
+                        </button>
+                    </div>
+
+                    <template x-if="settleResult">
+                        <div class="glass p-6 rounded-xl shadow-card border-t-4 border-t-rz-500 mt-6 fade-in space-y-4">
+                            <div class="flex justify-between items-center border-b pb-3">
+                                <h3 class="font-bold text-gray-800">Reconciliation Results</h3>
+                                <div class="text-sm font-medium px-3 py-1 rounded-full" :class="settleResult.total_issues > 0 ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'">
+                                    <span x-text="settleResult.total_issues"></span> Issues Found
+                                </div>
+                            </div>
+
+                            <div class="space-y-3">
+                                <template x-for="check in settleResult.checks">
+                                    <div class="p-3 rounded-lg border text-sm flex items-start" :class="{
+                                        'status-pass': check.status === 'PASS',
+                                        'status-block': check.status === 'BLOCK' || check.status === 'FAIL',
+                                        'status-flag': check.status === 'FLAG' || check.status === 'WARN',
+                                        'status-skip': check.status === 'SKIP'
+                                    }">
+                                        <div class="font-semibold w-24 shrink-0" x-text="check.status"></div>
+                                        <div>
+                                            <div class="font-semibold text-gray-900 mb-0.5" x-text="check.checker"></div>
+                                            <div class="opacity-90" x-text="check.detail"></div>
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </template>
+
+            <!-- PAGE: NARRATION -->
+            <template x-if="page === 'narration'">
+                <div class="max-w-4xl mx-auto space-y-6 fade-in pb-12">
+                    <div>
+                        <h1 class="text-2xl font-bold text-gray-900">Bank Narration Matcher</h1>
+                        <p class="text-sm text-gray-600 mt-1">Parses cryptic bank statement narrations and fuzzy-matches to known customers.</p>
+                        <p class="text-xs text-gray-500 mt-1 bg-white inline-block px-2 py-1 rounded border">Input: Bank statement CSV row → Output: matched customer + payment ref</p>
+                    </div>
+
+                    <div class="glass p-5 rounded-xl shadow-sm border border-gray-200">
+                        <h3 class="font-semibold text-gray-800 mb-3 text-sm">Mock HDFC Bank Statement (Click row to test)</h3>
+                        <div class="overflow-hidden rounded border border-gray-200">
+                            <table class="w-full text-sm text-left">
+                                <thead class="text-xs text-gray-500 bg-gray-50 border-b">
+                                    <tr><th class="px-4 py-2">Date</th><th class="px-4 py-2">Narration</th><th class="px-4 py-2 text-right">Credit</th><th class="px-4 py-2 text-right">Balance</th></tr>
+                                </thead>
+                                <tbody>
+                                    <tr @click="narrationText='NEFT/ABCCORP/REF99281'; runNarration()" class="bg-white border-b hover:bg-gray-50 cursor-pointer transition-colors">
+                                        <td class="px-4 py-2 text-gray-500">28-Aug</td><td class="px-4 py-2 font-mono text-xs">NEFT/ABCCORP/REF99281</td><td class="px-4 py-2 text-right text-green-600">1,50,000.00</td><td class="px-4 py-2 text-right text-gray-500">12,40,000.00</td>
+                                    </tr>
+                                    <tr @click="narrationText='IMPS/GLOBALTEX/INV456'; runNarration()" class="bg-white border-b hover:bg-gray-50 cursor-pointer transition-colors">
+                                        <td class="px-4 py-2 text-gray-500">27-Aug</td><td class="px-4 py-2 font-mono text-xs">IMPS/GLOBALTEX/INV456</td><td class="px-4 py-2 text-right text-green-600">75,000.00</td><td class="px-4 py-2 text-right text-gray-500">10,90,000.00</td>
+                                    </tr>
+                                    <tr @click="narrationText='UPI/ZENITHFOODS/P2M'; runNarration()" class="bg-white border-b hover:bg-gray-50 cursor-pointer transition-colors">
+                                        <td class="px-4 py-2 text-gray-500">26-Aug</td><td class="px-4 py-2 font-mono text-xs">UPI/ZENITHFOODS/P2M</td><td class="px-4 py-2 text-right text-green-600">32,500.00</td><td class="px-4 py-2 text-right text-gray-500">10,15,000.00</td>
+                                    </tr>
+                                    <tr @click="narrationText='RTGS/UNKNWN/TXN882'; runNarration()" class="bg-amber-50 border-b hover:bg-amber-100 cursor-pointer transition-colors">
+                                        <td class="px-4 py-2 text-gray-500">25-Aug</td><td class="px-4 py-2 font-mono text-xs text-amber-800">RTGS/UNKNWN/TXN882</td><td class="px-4 py-2 text-right text-green-600">2,10,000.00</td><td class="px-4 py-2 text-right text-gray-500">9,82,500.00</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="glass p-5 rounded-xl shadow-sm border border-gray-200">
+                        <div class="flex space-x-3">
+                            <input type="text" x-model="narrationText" placeholder="Paste narration string here..." class="flex-1 p-3 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-rz-400 outline-none font-mono">
+                            <button @click="runNarration" :disabled="narrationLoading || !narrationText" class="gradient-btn px-6 py-2 rounded-lg font-semibold shadow-sm flex items-center disabled:opacity-50">
+                                <i data-lucide="search" class="w-4 h-4 mr-2" :class="{'animate-spin': narrationLoading}"></i> Match
+                            </button>
+                        </div>
+                    </div>
+
+                    <template x-if="narrationResult">
+                        <div class="glass p-6 rounded-xl shadow-card border border-gray-200 mt-6 fade-in">
+                            <div class="flex items-start justify-between mb-6">
+                                <div>
+                                    <div class="flex items-center space-x-3 mb-2">
+                                        <span class="px-3 py-1 text-xs font-bold rounded-full text-white shadow-sm" :class="narrationResult.matched ? 'bg-green-500' : 'bg-red-500'" x-text="narrationResult.matched ? 'MATCHED' : 'NO MATCH'"></span>
+                                        <span class="px-3 py-1 text-xs font-semibold bg-gray-100 text-gray-700 rounded border border-gray-200 uppercase tracking-wide" x-text="narrationResult.parsed?.type || 'UNKNOWN'"></span>
+                                    </div>
+                                    <h3 class="text-2xl font-bold text-gray-900" x-text="narrationResult.best_match?.customer_name || 'Unknown Entity'"></h3>
+                                    <div class="text-sm font-mono text-gray-500 mt-1" x-text="narrationResult.best_match?.customer_id || '---'"></div>
+                                </div>
+                                <div class="text-right">
+                                    <div class="text-xs text-gray-500 mb-1 uppercase tracking-wide font-semibold">Payment Ref</div>
+                                    <div class="font-mono bg-gray-100 px-3 py-1.5 rounded border border-gray-200 text-sm" x-text="narrationResult.parsed?.ref || 'N/A'"></div>
+                                </div>
+                            </div>
+
+                            <div class="bg-gray-50 p-4 rounded-lg border border-gray-100">
+                                <div class="flex justify-between text-xs mb-1">
+                                    <span class="font-medium text-gray-600">Match Confidence</span>
+                                    <span class="font-bold" :class="narrationResult.matched ? 'text-green-600' : 'text-red-600'" x-text="narrationResult.best_match ? Math.round(narrationResult.best_match.confidence * 100) + '%' : '0%'"></span>
+                                </div>
+                                <div class="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+                                    <div class="h-2 rounded-full transition-all duration-500" :class="narrationResult.matched ? 'bg-green-500' : 'bg-red-500'" :style="`width: ${narrationResult.best_match ? narrationResult.best_match.confidence * 100 : 0}%`"></div>
+                                </div>
+                                <template x-if="narrationResult.best_match?.matched_token">
+                                    <div class="mt-3 text-xs text-gray-500 flex items-center">
+                                        <i data-lucide="link" class="w-3 h-3 mr-1"></i> Matched on token: <span class="font-mono bg-white px-1 ml-1 border rounded" x-text="narrationResult.best_match.matched_token"></span>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </template>
+
+            <!-- PAGE: DIARY -->
+            <template x-if="page === 'diary'">
+                <div class="max-w-4xl mx-auto space-y-6 fade-in pb-12">
+                    <div>
+                        <h1 class="text-2xl font-bold text-gray-900">Sealed Audit Diary</h1>
+                        <p class="text-sm text-gray-600 mt-1">Hash-chained, tamper-evident record; completed demo transactions also show Ed25519 seal verification.</p>
+                    </div>
+
+                    <div class="glass p-5 rounded-xl shadow-sm border border-gray-200 flex space-x-3">
+                        <input type="text" x-model="diarySession" placeholder="Enter Session ID..." class="flex-1 p-3 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-rz-400 outline-none font-mono">
+                        <button @click="loadDiary(diarySession)" :disabled="diaryLoading || !diarySession" class="gradient-btn px-6 py-2 rounded-lg font-semibold shadow-sm flex items-center disabled:opacity-50">
+                            <i data-lucide="lock" class="w-4 h-4 mr-2" :class="{'animate-spin': diaryLoading}"></i> Load Diary
+                        </button>
+                    </div>
+
+                    <template x-if="diaryData && diaryData.events">
+                        <div class="space-y-4 fade-in">
+                            <div class="p-3 rounded-lg border text-sm" :class="diaryData.signed_evidence_valid ? 'bg-green-50 border-green-200 text-green-800' : 'bg-amber-50 border-amber-200 text-amber-800'">
+                                <span class="font-semibold">Evidence seal:</span>
+                                <span x-text="diaryData.signed_evidence_valid ? 'verified against the configured demo key' : 'not yet sealed or not verifiable'"></span>
+                            </div>
+                            <div class="relative space-y-4 before:absolute before:inset-0 before:ml-[23px] before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-gray-300 before:to-transparent">
+                            <template x-for="(event, idx) in diaryData.events">
+                                <div class="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active">
+                                    <div class="flex items-center justify-center w-10 h-10 rounded-full border border-white bg-gray-100 group-[.is-active]:bg-rz-500 text-gray-500 group-[.is-active]:text-white shadow shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 z-10">
+                                        <span class="text-xs font-bold" x-text="event.seq"></span>
+                                    </div>
+                                    <div class="w-[calc(100%-4rem)] md:w-[calc(50%-2.5rem)] glass p-4 rounded-xl shadow-sm border border-gray-200 hover:shadow-md transition-shadow">
+                                        <div class="flex items-center justify-between mb-2 pb-2 border-b border-gray-100">
+                                            <div class="font-bold text-sm text-gray-800 uppercase tracking-wide" x-text="event.type"></div>
+                                            <div class="text-[10px] font-mono bg-gray-100 px-2 py-0.5 rounded text-gray-500" x-text="event.hash ? event.hash.substring(0,12) + '...' : ''"></div>
+                                        </div>
+                                        <pre class="text-[10px] text-gray-600 bg-gray-50 p-2 rounded overflow-x-auto whitespace-pre-wrap font-mono" x-text="JSON.stringify(event.payload, null, 2)"></pre>
+                                    </div>
+                                </div>
+                            </template>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </template>
+
+            <!-- PAGE: DISPUTE -->
+            <template x-if="page === 'dispute'">
+                <div class="max-w-3xl mx-auto space-y-6 fade-in pb-12">
+                    <div>
+                        <h1 class="text-2xl font-bold text-gray-900">Dispute Resolution</h1>
+                        <p class="text-sm text-gray-600 mt-1">Policy recommendation from the same evidence chain; unsupported claims escalate to a human.</p>
+                    </div>
+
+                    <div class="glass p-5 rounded-xl shadow-sm border border-gray-200 flex space-x-3">
+                        <input type="text" x-model="disputeSession" placeholder="Enter Session ID..." class="flex-1 p-3 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-rz-400 outline-none font-mono">
+                        <button @click="loadDispute(disputeSession)" :disabled="disputeLoading || !disputeSession" class="gradient-btn px-6 py-2 rounded-lg font-semibold shadow-sm flex items-center disabled:opacity-50">
+                            <i data-lucide="gavel" class="w-4 h-4 mr-2" :class="{'animate-spin': disputeLoading}"></i> Resolve
+                        </button>
+                    </div>
+
+                    <template x-if="disputeData">
+                        <div class="glass p-8 rounded-xl shadow-lifted border-t-8 mt-6 fade-in" :class="{
+                            'border-t-green-500': disputeData.verdict === 'CONTEST',
+                            'border-t-red-500': disputeData.verdict === 'REFUND',
+                            'border-t-amber-500': disputeData.verdict === 'PARTIAL_REFUND',
+                            'border-t-purple-500': disputeData.verdict === 'ESCALATE'
+                        }">
+                            <div class="text-center mb-8 border-b border-gray-200 pb-6">
+                                <div class="text-sm text-gray-500 font-bold tracking-widest uppercase mb-2">Recommendation</div>
+                                <h2 class="text-4xl font-extrabold tracking-tight mb-4" :class="{
+                                    'text-green-600': disputeData.verdict === 'CONTEST',
+                                    'text-red-600': disputeData.verdict === 'REFUND',
+                                    'text-amber-600': disputeData.verdict === 'PARTIAL_REFUND',
+                                    'text-purple-600': disputeData.verdict === 'ESCALATE'
+                                }" x-text="disputeData.verdict.replace('_', ' ')"></h2>
+                                <p class="text-gray-700 text-lg max-w-lg mx-auto bg-gray-50 p-4 rounded-lg border border-gray-100" x-text="disputeData.reason"></p>
+                            </div>
+
+                            <div>
+                                <h3 class="font-bold text-gray-800 mb-4 flex items-center text-sm uppercase tracking-wide"><i data-lucide="file-check-2" class="w-4 h-4 mr-2 text-gray-500"></i> Evidence pack</h3>
+                                <div class="space-y-3">
+                                    <template x-for="(section, i) in disputeData.evidence">
+                                        <div class="p-4 rounded-lg border bg-white shadow-sm">
+                                            <div class="font-semibold text-sm text-gray-800 mb-2" x-text="section.section"></div>
+                                            <template x-for="(value, key) in section.items">
+                                                <div class="grid grid-cols-3 gap-3 text-xs border-t border-gray-100 py-1.5">
+                                                    <div class="font-medium text-gray-500 break-words" x-text="key.replaceAll('_', ' ')"></div>
+                                                    <div class="col-span-2 text-gray-700 break-words" x-text="typeof value === 'object' ? JSON.stringify(value) : value"></div>
+                                                </div>
+                                            </template>
+                                        </div>
+                                    </template>
+                                </div>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </template>
+
+            <!-- PAGE: BENCHMARK -->
+            <template x-if="page === 'benchmark'">
+                <div class="max-w-5xl mx-auto space-y-6 fade-in pb-12">
+                    <div>
+                        <h1 class="text-2xl font-bold text-gray-900">Kasauti Benchmark Report</h1>
+                        <p class="text-sm text-gray-600 mt-1">Synthetic adversarial fixtures. Read the generated run manifest before using any metric.</p>
+                    </div>
+
+                    <div class="grid grid-cols-4 gap-4">
+                        <div class="glass p-4 rounded-xl shadow-sm border border-gray-200 text-center">
+                            <div class="text-xs text-gray-500 font-bold uppercase tracking-wide mb-1">Scenario fixtures</div>
+                            <div class="text-3xl font-extrabold text-rz-600">14</div>
+                        </div>
+                        <div class="glass p-4 rounded-xl shadow-sm border border-gray-200 text-center">
+                            <div class="text-xs text-gray-500 font-bold uppercase tracking-wide mb-1">Customer source</div>
+                            <div class="text-lg font-extrabold text-rz-600">Scripted</div>
+                        </div>
+                        <div class="glass p-4 rounded-xl shadow-sm border border-gray-200 text-center">
+                            <div class="text-xs text-gray-500 font-bold uppercase tracking-wide mb-1">Settlement source</div>
+                            <div class="text-lg font-extrabold text-rz-600">Synthetic</div>
+                        </div>
+                        <div class="glass p-4 rounded-xl shadow-sm border border-gray-200 text-center">
+                            <div class="text-xs text-gray-500 font-bold uppercase tracking-wide mb-1">Scoring</div>
+                            <div class="text-lg font-extrabold text-rz-600">Pre-correction</div>
+                        </div>
+                    </div>
+
+                    <div class="bg-blue-50 border border-blue-200 p-4 rounded-xl flex items-start shadow-sm">
+                        <i data-lucide="brain-circuit" class="w-5 h-5 text-blue-600 mr-3 mt-0.5 shrink-0"></i>
+                        <div>
+                            <h4 class="font-bold text-blue-900 text-sm mb-1">Evidence before metric</h4>
+                            <p class="text-sm text-blue-800">Kasauti records provider, seed, scenario IDs and every simulation boundary in <code>run-manifest.json</code>. A synthetic report is never presented as live production performance.</p>
+                        </div>
+                    </div>
+                    <template x-if="runManifest">
+                        <div class="text-xs text-gray-600 bg-white/80 border border-gray-200 rounded-xl px-4 py-3"><span class="font-bold text-gray-800">Loaded manifest:</span> <span x-text="runManifest.provider"></span> · seed <span x-text="runManifest.seed"></span> · <span x-text="runManifest.scenario_count"></span> fixtures · generated <span x-text="new Date(runManifest.created_at).toLocaleString()"></span></div>
+                    </template>
+
+                    <div class="glass rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                        <div class="px-5 py-4 border-b border-gray-200 bg-white/50 flex justify-between items-center">
+                            <h3 class="font-bold text-gray-800 text-sm uppercase tracking-wide">Test Runs</h3>
+                            <select x-model="selectedScenario" class="text-sm border-gray-300 rounded p-1.5 bg-white shadow-sm outline-none">
+                                <option value="">All Scenarios</option>
+                                <template x-for="id in scenarioIds" :key="id">
+                                    <option :value="id" x-text="id"></option>
+                                </template>
+                            </select>
+                        </div>
+                        <div class="overflow-x-auto max-h-[500px] overflow-y-auto custom-scrollbar">
+                            <table class="w-full text-sm text-left">
+                                <thead class="text-xs text-gray-500 uppercase bg-gray-50 sticky top-0 shadow-sm z-10">
+                                    <tr>
+                                        <th class="px-4 py-3">Scenario</th>
+                                        <th class="px-4 py-3">Agent</th>
+                                        <th class="px-4 py-3">Gate Status</th>
+                                        <th class="px-4 py-3">Leaked Amount</th>
+                                        <th class="px-4 py-3">Patterns Detected</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <template x-for="run in allRuns.filter(r => !selectedScenario || r.scenario_id === selectedScenario)" :key="run.scenario_id + run.agent + run.repeat">
+                                        <tr class="bg-white border-b hover:bg-gray-50">
+                                            <td class="px-4 py-3 font-mono text-[10px] text-gray-600 max-w-[200px] truncate" :title="run.scenario_id" x-text="run.scenario_id"></td>
+                                            <td class="px-4 py-3">
+                                                <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider" :class="run.agent === 'rule-naive' ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'" x-text="run.agent"></span>
+                                            </td>
+                                            <td class="px-4 py-3">
+                                                <span x-text="run.gate_status || 'N/A'" class="font-mono text-xs" :class="{'text-red-600 font-bold': run.gate_status === 'BLOCK', 'text-green-600': run.gate_status === 'PASS'}"></span>
+                                            </td>
+                                            <td class="px-4 py-3 font-mono text-xs" :class="{'text-red-600 font-bold': run.gate_impact_paise > 0}" x-text="run.gate_impact_paise ? fmt(run.gate_impact_paise) : '0'"></td>
+                                            <td class="px-4 py-3 text-xs text-gray-600 truncate max-w-[200px]" x-text="run.patterns && run.patterns.length ? run.patterns.join(', ') : 'None'"></td>
+                                        </tr>
+                                    </template>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </template>
+
+            <!-- PAGE: GATE -->
+            <template x-if="page === 'gate'">
+                <div class="max-w-5xl mx-auto space-y-6 fade-in pb-12">
+                    <div>
+                        <h1 class="text-2xl font-bold text-gray-900">Intent Gate Tool</h1>
+                        <p class="text-sm text-gray-600 mt-1">Compare what the customer asked for against what the AI agent put in the cart.</p>
+                    </div>
+
+                    <div class="flex space-x-2">
+                        <button @click="loadPreset('clean')" class="px-3 py-1.5 text-xs font-semibold bg-white border border-gray-300 rounded hover:bg-gray-50 shadow-sm text-gray-700">Clean Match</button>
+                        <button @click="loadPreset('sneaked')" class="px-3 py-1.5 text-xs font-semibold bg-white border border-gray-300 rounded hover:bg-gray-50 shadow-sm text-gray-700">Sneaked Item</button>
+                        <button @click="loadPreset('markup')" class="px-3 py-1.5 text-xs font-semibold bg-white border border-gray-300 rounded hover:bg-gray-50 shadow-sm text-gray-700">Price Markup</button>
+                        <button @click="loadPreset('qty')" class="px-3 py-1.5 text-xs font-semibold bg-white border border-gray-300 rounded hover:bg-gray-50 shadow-sm text-gray-700">Quantity Change</button>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-6">
+                        <!-- Intent Card -->
+                        <div class="glass p-5 rounded-xl shadow-sm border border-gray-200">
+                            <h3 class="font-bold text-gray-800 mb-4 text-sm flex items-center"><i data-lucide="user" class="w-4 h-4 mr-2 text-blue-500"></i> Customer Intent</h3>
+                            <div class="space-y-3">
+                                <template x-for="(item, i) in intentItems" :key="i">
+                                    <div class="flex space-x-2 bg-gray-50 p-2 rounded border border-gray-100">
+                                        <input type="text" x-model="item.name" class="flex-1 p-1.5 text-sm border rounded bg-white" placeholder="Item name">
+                                        <input type="number" x-model.number="item.qty" class="w-16 p-1.5 text-sm border rounded bg-white text-center" placeholder="Qty">
+                                        <input type="number" x-model.number="item.unit_paise" class="w-24 p-1.5 text-sm border rounded bg-white text-right" placeholder="Paise">
+                                        <button @click="intentItems.splice(i, 1)" class="p-1.5 text-red-500 hover:bg-red-50 rounded"><i data-lucide="x" class="w-4 h-4"></i></button>
+                                    </div>
+                                </template>
+                                <button @click="intentItems.push({name:'',qty:1,unit_paise:0})" class="text-xs text-blue-600 font-semibold flex items-center hover:underline"><i data-lucide="plus" class="w-3 h-3 mr-1"></i> Add item</button>
+                            </div>
+                        </div>
+
+                        <!-- Cart Card -->
+                        <div class="glass p-5 rounded-xl shadow-sm border border-gray-200">
+                            <h3 class="font-bold text-gray-800 mb-4 text-sm flex items-center"><i data-lucide="shopping-cart" class="w-4 h-4 mr-2 text-purple-500"></i> Agent's Cart</h3>
+                            <div class="space-y-3">
+                                <template x-for="(item, i) in cartItems" :key="i">
+                                    <div class="flex space-x-2 bg-gray-50 p-2 rounded border border-gray-100">
+                                        <input type="text" x-model="item.name" class="flex-1 p-1.5 text-sm border rounded bg-white" placeholder="Item name">
+                                        <input type="number" x-model.number="item.qty" class="w-16 p-1.5 text-sm border rounded bg-white text-center" placeholder="Qty">
+                                        <input type="number" x-model.number="item.unit_paise" class="w-24 p-1.5 text-sm border rounded bg-white text-right" placeholder="Paise">
+                                        <button @click="cartItems.splice(i, 1)" class="p-1.5 text-red-500 hover:bg-red-50 rounded"><i data-lucide="x" class="w-4 h-4"></i></button>
+                                    </div>
+                                </template>
+                                <button @click="cartItems.push({name:'',qty:1,unit_paise:0})" class="text-xs text-purple-600 font-semibold flex items-center hover:underline"><i data-lucide="plus" class="w-3 h-3 mr-1"></i> Add item</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="text-center">
+                        <button @click="runGate" :disabled="gateLoading" class="gradient-btn px-8 py-3 rounded-lg font-semibold shadow-md inline-flex items-center space-x-2 disabled:opacity-50">
+                            <i data-lucide="shield-check" class="w-5 h-5" :class="{'animate-spin': gateLoading}"></i>
+                            <span>Run Gate Evaluation</span>
+                        </button>
+                    </div>
+
+                    <template x-if="gateResult">
+                        <div class="glass p-6 rounded-xl shadow-card mt-6 fade-in border-2" :class="gateResult.status === 'BLOCK' ? 'border-red-400 bg-red-50/30' : 'border-green-400 bg-green-50/30'">
+                            <div class="flex justify-between items-center mb-4 border-b pb-4" :class="gateResult.status === 'BLOCK' ? 'border-red-100' : 'border-green-100'">
+                                <h2 class="text-2xl font-extrabold tracking-tight" :class="gateResult.status === 'BLOCK' ? 'text-red-700' : 'text-green-700'" x-text="gateResult.status"></h2>
+                                <div class="text-sm font-semibold" :class="gateResult.status === 'BLOCK' ? 'text-red-600' : 'text-green-600'" x-text="gateResult.status === 'BLOCK' ? 'Intent mismatch detected' : 'Cart matches intent'"></div>
+                            </div>
+
+                            <div class="space-y-3">
+                                <template x-for="v in gateResult.verdicts">
+                                    <div class="flex items-start p-3 bg-white rounded shadow-sm border" :class="v.status === 'BLOCK' ? 'border-red-200' : 'border-gray-200'">
+                                        <div class="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider mr-3 shrink-0 mt-0.5 w-16 text-center" :class="v.status === 'BLOCK' ? 'bg-red-100 text-red-800' : (v.status === 'PASS' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800')" x-text="v.status"></div>
+                                        <div>
+                                            <div class="font-bold text-sm text-gray-800" x-text="v.checker"></div>
+                                            <div class="text-xs text-gray-600 mt-0.5" x-text="v.reason"></div>
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </template>
+
+            <!-- PAGE: SPEECH -->
+            <template x-if="page === 'speech'">
+                <div class="max-w-4xl mx-auto space-y-6 fade-in pb-12">
+                    <div>
+                        <h1 class="text-2xl font-bold text-gray-900">Speech Guard Tool</h1>
+                        <p class="text-sm text-gray-600 mt-1">Scan any agent message for CCPA 2023 dark patterns in real-time.</p>
+                    </div>
+
+                    <div class="flex space-x-2">
+                        <button @click="scanText='Only 2 left! Price ends soon!'; scanRefusal=false" class="px-3 py-1.5 text-xs font-semibold bg-white border border-gray-300 rounded hover:bg-gray-50 shadow-sm text-gray-700">False Urgency</button>
+                        <button @click="scanText='Most customers add it. Are you sure you want to miss out?'; scanRefusal=true" class="px-3 py-1.5 text-xs font-semibold bg-white border border-gray-300 rounded hover:bg-gray-50 shadow-sm text-gray-700">Confirm Shaming</button>
+                        <button @click="scanText='We offer a full refund anytime no questions asked!'; scanRefusal=false" class="px-3 py-1.5 text-xs font-semibold bg-white border border-gray-300 rounded hover:bg-gray-50 shadow-sm text-gray-700">Invented Policy</button>
+                    </div>
+
+                    <div class="glass p-5 rounded-xl shadow-sm border border-gray-200">
+                        <textarea x-model="scanText" rows="4" class="w-full p-4 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-rz-400 outline-none resize-none bg-white" placeholder="Enter agent message to scan..."></textarea>
+
+                        <div class="mt-4 flex items-center justify-between">
+                            <label class="flex items-center space-x-2 cursor-pointer">
+                                <input type="checkbox" x-model="scanRefusal" class="w-4 h-4 text-rz-500 rounded border-gray-300 focus:ring-rz-400">
+                                <span class="text-sm text-gray-700 font-medium">Context: Sent after customer refused an offer</span>
+                            </label>
+
+                            <button @click="doScan" :disabled="scanLoading || !scanText" class="gradient-btn px-6 py-2 rounded-lg font-semibold shadow-sm flex items-center disabled:opacity-50">
+                                <i data-lucide="scan-line" class="w-4 h-4 mr-2" :class="{'animate-spin': scanLoading}"></i> Scan Text
+                            </button>
+                        </div>
+                    </div>
+
+                    <template x-if="scanResult">
+                        <div class="glass p-6 rounded-xl shadow-card mt-6 fade-in border-2" :class="scanResult.blocked ? 'border-amber-400 bg-amber-50/30' : 'border-emerald-400 bg-emerald-50/30'">
+                            <div class="flex items-center mb-6">
+                                <div class="w-10 h-10 rounded-full flex items-center justify-center mr-4 shrink-0 shadow-sm" :class="scanResult.blocked ? 'bg-amber-100 text-amber-600' : 'bg-emerald-100 text-emerald-600'">
+                                    <i data-lucide="shield-alert" class="w-5 h-5" x-show="scanResult.blocked"></i>
+                                    <i data-lucide="shield-check" class="w-5 h-5" x-show="!scanResult.blocked"></i>
+                                </div>
+                                <div>
+                                    <h2 class="text-xl font-bold" :class="scanResult.blocked ? 'text-amber-800' : 'text-emerald-800'" x-text="scanResult.blocked ? 'Pattern Detected' : 'Clean Message'"></h2>
+                                    <p class="text-sm" :class="scanResult.blocked ? 'text-amber-700' : 'text-emerald-700'" x-text="scanResult.blocked ? 'Message rewritten before sending.' : 'Safe to send to customer.'"></p>
+                                </div>
+                            </div>
+
+                            <template x-if="scanResult.blocked">
+                                <div class="space-y-4">
+                                    <div class="grid grid-cols-2 gap-4">
+                                        <div class="bg-red-50 border border-red-100 p-4 rounded-lg relative overflow-hidden">
+                                            <div class="absolute top-0 right-0 bg-red-100 text-red-800 text-[10px] font-bold px-2 py-0.5 rounded-bl">BLOCKED</div>
+                                            <div class="text-xs text-red-400 font-bold uppercase tracking-wider mb-2">Original</div>
+                                            <p class="text-sm text-red-900" x-text="scanResult.original"></p>
+                                        </div>
+                                        <div class="bg-green-50 border border-green-100 p-4 rounded-lg relative overflow-hidden">
+                                            <div class="absolute top-0 right-0 bg-green-100 text-green-800 text-[10px] font-bold px-2 py-0.5 rounded-bl">SENT</div>
+                                            <div class="text-xs text-green-500 font-bold uppercase tracking-wider mb-2">Replacement</div>
+                                            <p class="text-sm text-green-900" x-text="scanResult.replacement"></p>
+                                        </div>
+                                    </div>
+
+                                    <div class="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
+                                        <h4 class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Findings</h4>
+                                        <div class="space-y-2">
+                                            <template x-for="find in scanResult.findings">
+                                                <div class="flex items-start">
+                                                    <i data-lucide="alert-triangle" class="w-3.5 h-3.5 text-amber-500 mr-2 mt-0.5 shrink-0"></i>
+                                                    <div>
+                                                        <span class="font-semibold text-sm text-gray-800" x-text="find.pattern"></span>
+                                                        <span class="text-sm text-gray-600 ml-1">detected in snippet:</span>
+                                                        <span class="font-mono text-xs bg-gray-100 px-1.5 py-0.5 rounded ml-1 text-gray-800">"<span x-text="find.snippet"></span>"</span>
+                                                    </div>
+                                                </div>
+                                            </template>
+                                        </div>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                    </template>
+                </div>
+            </template>
+
+        </main>
+    </div>
+
+    <script>
+        function dashboard() {
+            return {
+                page: 'hero',
+
+                // Compare demo
+                compareSession: null,
+                compareMessages: [],
+                comparePipeline: [],
+                compareTurns: [],
+                autoPlaying: false,
+                totalSavings: 0,
+                orderNotes: null,
+                demoSessionId: null,
+
+                // Agentic Offer Lock — exact commercial terms shown to the buyer.
+                offerLockDraft: {
+                    txn: 'offer_demo_pizza_001',
+                    terms: {
+                        merchant_id: 'demo-pizza-co',
+                        offer_id: 'offer_pizza_001',
+                        catalog_version: 'menu-2026-08-28.1',
+                        lines: [{sku: 'PZ-MARG', name: 'Margherita Pizza', qty: 2, unit_paise: 32000}],
+                        currency: 'INR', shipping_paise: 4000, tax_paise: 0,
+                        delivery_by: '2026-08-30', return_policy_version: 'returns-v4',
+                        substitution_policy: 'no_substitution', renewal_summary: null
+                    },
+                    approval: {
+                        approval_ref: 'buyer_approval_001',
+                        playback: '2 Margherita Pizzas for ₹680, delivered by 30 August. No substitutions.',
+                        channel: 'chatgpt_app', principal_ref: 'buyer_session_demo_001'
+                    }
+                },
+                offerLockChanged: true,
+                offerLockResult: null,
+                offerLockCheck: null,
+                offerLockLoading: false,
+                offerLockError: '',
+                aiBuyerRequest: 'Two margherita pizzas, please. Deliver by Saturday. No substitutions.',
+                aiComposition: null,
+                aiComposeLoading: false,
+                aiComposeError: '',
+                testModeCheckout: null,
+                testModeStatus: null,
+                testModeLoading: false,
+                testModeError: '',
+
+                // Gate
+                intentItems: [
+                    {name: 'Margherita Pizza', qty: 1, unit_paise: 40000},
+                    {name: 'Coke', qty: 2, unit_paise: 6000}
+                ],
+                cartItems: [
+                    {name: 'Margherita Pizza', qty: 1, unit_paise: 40000},
+                    {name: 'Coke', qty: 2, unit_paise: 6000},
+                    {name: 'Garlic Bread', qty: 1, unit_paise: 15000}
+                ],
+                gateResult: null,
+                gateLoading: false,
+
+                // Speech
+                scanText: '',
+                scanRefusal: false,
+                scanResult: null,
+                scanLoading: false,
+
+                // Settlement
+                settleData: {
+                    fx_check: {quoted_rate: 83.50, official_rate: 83.90, band_bps: 100, pair: 'USD/INR'},
+                    fee_check: {plan_rate_pct: 2.0, actual_rate_pct: 3.5, order_paise: 100000},
+                    refund_check: {order_paise: 64000, mdr_pct: 2.0}
+                },
+                settleResult: null,
+                settleLoading: false,
+
+                // Narration
+                narrationText: '',
+                narrationResult: null,
+                narrationLoading: false,
+
+                // Diary
+                diarySession: '',
+                diaryData: null,
+                diaryLoading: false,
+
+                // Dispute
+                disputeSession: '',
+                disputeData: null,
+                disputeLoading: false,
+
+                // Benchmark
+                allRuns: [],
+                scenarioIds: [],
+                selectedScenario: '',
+                runManifest: null,
+                runtimeReadiness: null,
+
+                init() {
+                    this.applyRoute(window.location.pathname, false);
+                    fetch('/api/runs')
+                        .then(r => r.json())
+                        .then(d => {
+                            this.allRuns = d;
+                            this.scenarioIds = [...new Set(d.map(r => r.scenario_id))].sort();
+                            this.selectedScenario = this.scenarioIds[0] || '';
+                        })
+                        .catch(() => {});
+                    fetch('/api/run-manifest')
+                        .then(r => r.ok ? r.json() : null)
+                        .then(d => { this.runManifest = d; })
+                        .catch(() => {});
+                    fetch('/api/runtime-readiness')
+                        .then(r => r.ok ? r.json() : null)
+                        .then(d => { this.runtimeReadiness = d; this.$nextTick(() => lucide.createIcons()); })
+                        .catch(() => {});
+                    window.addEventListener('popstate', () => this.applyRoute(window.location.pathname, true));
+                    this.$nextTick(() => lucide.createIcons());
+                },
+
+                routeFor(page, sessionId = '') {
+                    const routes = {
+                        hero: '/', offerlock: '/offer-lock', settle: '/settlements',
+                        diary: '/evidence', dispute: '/claims', benchmark: '/release',
+                        gate: '/intent-check', speech: '/speech-check', agent: '/checkout-safety'
+                    };
+                    const base = routes[page] || '/';
+                    return sessionId && (page === 'diary' || page === 'dispute')
+                        ? base + '/' + encodeURIComponent(sessionId)
+                        : base;
+                },
+
+                applyRoute(pathname, loadEvidence = true) {
+                    const path = (pathname || '/').replace(/\/+$/, '') || '/';
+                    const evidence = path.match(/^\/evidence\/([^/]+)$/);
+                    const claim = path.match(/^\/claims\/([^/]+)$/);
+                    const pages = {
+                        '/': 'hero', '/offer-lock': 'offerlock', '/settlements': 'settle',
+                        '/evidence': 'diary', '/claims': 'dispute', '/release': 'benchmark',
+                        '/intent-check': 'gate', '/speech-check': 'speech', '/checkout-safety': 'agent'
+                    };
+                    if (evidence) {
+                        this.page = 'diary';
+                        this.diarySession = decodeURIComponent(evidence[1]);
+                        if (loadEvidence) this.loadDiary(this.diarySession);
+                    } else if (claim) {
+                        this.page = 'dispute';
+                        this.disputeSession = decodeURIComponent(claim[1]);
+                        if (loadEvidence) this.loadDispute(this.disputeSession);
+                    } else {
+                        this.page = pages[path] || 'hero';
+                    }
+                    this.$nextTick(() => lucide.createIcons());
+                },
+
+                navigate(page, sessionId = '') {
+                    const path = this.routeFor(page, sessionId);
+                    if (window.location.pathname !== path) history.pushState({page}, '', path);
+                    this.applyRoute(path, true);
+                },
+
+                pageTitle() {
+                    const titles = {
+                        'hero': 'How it works',
+                        'offerlock': 'Lock buyer offer',
+                        'agent': 'Stop unsafe checkout',
+                        'fx': 'Cross-border FX',
+                        'settle': 'Reconcile settlement',
+                        'narration': 'Bank Narration',
+                        'diary': 'Review evidence',
+                        'dispute': 'Resolve a claim',
+                        'benchmark': 'Test before release',
+                        'gate': 'Intent check',
+                        'speech': 'Speech check'
+                    };
+                    return titles[this.page] || 'Dashboard';
+                },
+
+                fmt(p) {
+                    return '\u20b9' + ((p||0)/100).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                },
+
+                loadPreset(type) {
+                    this.intentItems = [
+                        {name: 'Margherita Pizza', qty: 1, unit_paise: 40000},
+                        {name: 'Coke', qty: 2, unit_paise: 6000}
+                    ];
+
+                    if (type === 'clean') {
+                        this.cartItems = [...this.intentItems.map(i => ({...i}))];
+                    } else if (type === 'sneaked') {
+                        this.cartItems = [
+                            ...this.intentItems.map(i => ({...i})),
+                            {name: 'Garlic Bread', qty: 1, unit_paise: 15000}
+                        ];
+                    } else if (type === 'markup') {
+                        this.cartItems = [
+                            {name: 'Margherita Pizza', qty: 1, unit_paise: 45000},
+                            {name: 'Coke', qty: 2, unit_paise: 6000}
+                        ];
+                    } else if (type === 'qty') {
+                        this.cartItems = [
+                            {name: 'Margherita Pizza', qty: 2, unit_paise: 40000},
+                            {name: 'Coke', qty: 2, unit_paise: 6000}
+                        ];
+                    }
+                },
+
+                delay(ms) {
+                    return new Promise(resolve => setTimeout(resolve, ms));
+                },
+
+                scrollChats() {
+                    this.$nextTick(() => {
+                        const cn = document.getElementById('chat-naive');
+                        if(cn) cn.scrollTop = cn.scrollHeight;
+                        const cg = document.getElementById('chat-guarded');
+                        if(cg) cg.scrollTop = cg.scrollHeight;
+                    });
+                },
+
+                async startCompare(scenarioId) {
+                    this.compareSession = null;
+                    this.compareMessages = [];
+                    this.comparePipeline = [];
+                    this.autoPlaying = true;
+                    this.orderNotes = null;
+                    this.demoSessionId = null;
+
+                    try {
+                        const r = await fetch('/api/compare/start', {
+                            method: 'POST',
+                            headers: {'Content-Type': 'application/json'},
+                            body: JSON.stringify({scenario_id: scenarioId})
+                        });
+                        const data = await r.json();
+
+                        this.compareSession = data.session_id;
+                        this.compareTurns = data.suggested_turns || [];
+                        this.$nextTick(() => lucide.createIcons());
+
+                        // Play turns
+                        for (const turn of this.compareTurns) {
+                            if(!this.compareSession) break; // aborted
+
+                            await this.delay(1000);
+
+                            // User msg
+                            this.compareMessages.push({role: 'user', text: turn.text});
+                            this.scrollChats();
+
+                            await this.delay(800);
+
+                            // Call API
+                            const r2 = await fetch('/api/compare/message', {
+                                method: 'POST',
+                                headers: {'Content-Type': 'application/json'},
+                                body: JSON.stringify({session_id: this.compareSession, message: turn.text})
+                            });
+                            const resp = await r2.json();
+
+                            if(!this.compareSession) break;
+
+                            // Naive resp
+                            this.compareMessages.push({role: 'naive', ...resp.naive});
+                            this.scrollChats();
+
+                            await this.delay(400);
+
+                            // Guarded resp
+                            this.compareMessages.push({role: 'guarded', different: resp.different, ...resp.guarded});
+                            this.scrollChats();
+
+                            // Pipeline steps
+                            if (resp.pipeline && resp.pipeline.length > 0) {
+                                this.comparePipeline = [...this.comparePipeline, ...resp.pipeline];
+                                this.$nextTick(() => lucide.createIcons());
+                            }
+
+                            // Track savings
+                            if (resp.savings_paise > 0) {
+                                this.totalSavings += resp.savings_paise;
+                            }
+
+                            // Capture order notes and diary link
+                            if (resp.order_notes) {
+                                this.orderNotes = resp.order_notes;
+                            }
+                            if (resp.diary_session_id) {
+                                this.demoSessionId = resp.diary_session_id;
+                            }
+                        }
+
+                    } catch(e) {
+                        console.error(e);
+                    }
+                    this.autoPlaying = false;
+                },
+
+                async explainStep(step) {
+                    step.explaining = true;
+                    try {
+                        const r = await fetch('/api/explain', {
+                            method: 'POST',
+                            headers: {'Content-Type': 'application/json'},
+                            body: JSON.stringify({
+                                verdict: step.action + ': ' + step.detail,
+                                context: step.step + (step.before ? '. Before: ' + step.before + '. After: ' + step.after : '')
+                            })
+                        });
+                        const data = await r.json();
+                        step.explanation = data.explanation;
+                        step.risk_level = data.risk_level;
+                        step.explaining = false;
+                        this.$nextTick(() => lucide.createIcons());
+                    } catch(e) {
+                        step.explanation = 'Could not reach Gemini: ' + e.message;
+                        step.explaining = false;
+                    }
+                },
+
+                async correctStep(step) {
+                    const reason = prompt('Why is this verdict wrong? (e.g. "This is normal for this vendor")');
+                    if (!reason) return;
+                    try {
+                        const r = await fetch('/api/memory/correct', {
+                            method: 'POST',
+                            headers: {'Content-Type': 'application/json'},
+                            body: JSON.stringify({
+                                checker: step.step.toLowerCase().replace(/ /g, '_'),
+                                original_verdict: step.action + ': ' + step.detail,
+                                correction: 'PASS',
+                                reason: reason
+                            })
+                        });
+                        const data = await r.json();
+                        step.corrected = true;
+                        step.correctionMsg = data.message;
+                        this.$nextTick(() => lucide.createIcons());
+                    } catch(e) {
+                        console.error(e);
+                    }
+                },
+
+                offerTotal(terms) {
+                    const lines = (terms.lines || []).reduce((sum, line) => sum + (line.qty * line.unit_paise), 0);
+                    return lines + (terms.shipping_paise || 0) + (terms.tax_paise || 0);
+                },
+
+                observedOfferTerms() {
+                    const base = JSON.parse(JSON.stringify(this.offerLockDraft.terms));
+                    if (!this.offerLockChanged) return base;
+                    return {
+                        ...base,
+                        catalog_version: 'menu-2026-08-29.2',
+                        lines: [
+                            {sku: 'PZ-MARG', name: 'Margherita Pizza', qty: 2, unit_paise: 35000},
+                            {sku: 'SD-GARL', name: 'Garlic Bread', qty: 1, unit_paise: 19000}
+                        ],
+                        delivery_by: '2026-09-02',
+                        return_policy_version: 'returns-v5'
+                    };
+                },
+
+                setOfferScenario(changed) {
+                    this.offerLockChanged = changed;
+                    this.offerLockCheck = null;
+                    this.offerLockError = '';
+                },
+
+                async composeOfferWithAI() {
+                    this.aiComposeLoading = true;
+                    this.aiComposeError = '';
+                    try {
+                        const r = await fetch('/api/offer-drafts', {
+                            method: 'POST', headers: {'Content-Type': 'application/json'},
+                            body: JSON.stringify({buyer_request: this.aiBuyerRequest})
+                        });
+                        const data = await r.json();
+                        if (!r.ok) throw new Error(data.error || 'AI could not create a safe offer draft');
+                        this.aiComposition = data;
+                        const {subtotal_paise, total_paise, ...terms} = data.terms;
+                        this.offerLockDraft.terms = terms;
+                        this.offerLockDraft.approval.playback = data.buyer_summary;
+                        this.offerLockResult = null;
+                        this.offerLockCheck = null;
+                    } catch (e) {
+                        this.aiComposeError = e.message;
+                    }
+                    this.aiComposeLoading = false;
+                    this.$nextTick(() => lucide.createIcons());
+                },
+
+                async createOfferLock() {
+                    this.offerLockLoading = true;
+                    this.offerLockError = '';
+                    this.offerLockCheck = null;
+                    try {
+                        this.offerLockDraft.txn = 'offer_demo_' + Date.now();
+                        this.offerLockDraft.approval.approval_ref = 'buyer_approval_' + Date.now();
+                        const r = await fetch('/api/offer-locks', {
+                            method: 'POST', headers: {'Content-Type': 'application/json'},
+                            body: JSON.stringify({...this.offerLockDraft, ai_provenance: this.aiComposition?.provenance || null})
+                        });
+                        const data = await r.json();
+                        if (!r.ok) throw new Error(data.error || 'Could not sign the offer');
+                        this.offerLockResult = data;
+                        this.testModeCheckout = null;
+                        this.testModeStatus = null;
+                        this.testModeError = '';
+                    } catch (e) {
+                        this.offerLockError = e.message;
+                    }
+                    this.offerLockLoading = false;
+                    this.$nextTick(() => lucide.createIcons());
+                },
+
+                async checkOfferLock() {
+                    if (!this.offerLockResult) return;
+                    this.offerLockLoading = true;
+                    this.offerLockError = '';
+                    try {
+                        const r = await fetch('/api/offer-locks/' + this.offerLockResult.lock.lock_id + '/check', {
+                            method: 'POST', headers: {'Content-Type': 'application/json'},
+                            body: JSON.stringify({terms: this.observedOfferTerms()})
+                        });
+                        const data = await r.json();
+                        if (!r.ok) throw new Error(data.error || 'Could not compare the terms');
+                        this.offerLockCheck = data;
+                    } catch (e) {
+                        this.offerLockError = e.message;
+                    }
+                    this.offerLockLoading = false;
+                    this.$nextTick(() => lucide.createIcons());
+                },
+
+                async openOfferEvidence(destination) {
+                    const sid = this.offerLockCheck?.evidence_session_id || this.offerLockResult?.evidence_session_id;
+                    if (!sid) return;
+                    if (destination === 'diary') {
+                        this.navigate('diary', sid);
+                    } else {
+                        this.navigate('dispute', sid);
+                    }
+                },
+
+                async createTestModeOrder() {
+                    if (!this.offerLockResult) return;
+                    this.testModeLoading = true;
+                    this.testModeError = '';
+                    try {
+                        const r = await fetch('/api/offer-locks/' + this.offerLockResult.lock.lock_id + '/test-mode-order', {method: 'POST'});
+                        const data = await r.json();
+                        if (!r.ok) throw new Error(data.error || 'Could not create the Test Mode order');
+                        this.testModeCheckout = data;
+                        await this.refreshTestModeStatus();
+                    } catch (e) {
+                        this.testModeError = e.message;
+                    }
+                    this.testModeLoading = false;
+                    this.$nextTick(() => lucide.createIcons());
+                },
+
+                async refreshTestModeStatus() {
+                    if (!this.testModeCheckout) return;
+                    try {
+                        const r = await fetch('/api/test-mode/orders/' + this.testModeCheckout.order.id + '/status');
+                        const data = await r.json();
+                        if (!r.ok) throw new Error(data.error || 'Could not read webhook status');
+                        this.testModeStatus = data;
+                    } catch (e) {
+                        this.testModeError = e.message;
+                    }
+                    this.$nextTick(() => lucide.createIcons());
+                },
+
+                loadRazorpayCheckout() {
+                    if (window.Razorpay) return Promise.resolve();
+                    return new Promise((resolve, reject) => {
+                        const existing = document.getElementById('razorpay-checkout-js');
+                        if (existing) {
+                            existing.addEventListener('load', resolve, {once: true});
+                            existing.addEventListener('error', () => reject(new Error('Razorpay Checkout could not be loaded')), {once: true});
+                            return;
+                        }
+                        const script = document.createElement('script');
+                        script.id = 'razorpay-checkout-js';
+                        script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+                        script.onload = resolve;
+                        script.onerror = () => reject(new Error('Razorpay Checkout could not be loaded'));
+                        document.head.appendChild(script);
+                    });
+                },
+
+                async openRazorpayTestCheckout() {
+                    if (!this.testModeCheckout) return;
+                    this.testModeLoading = true;
+                    this.testModeError = '';
+                    try {
+                        await this.loadRazorpayCheckout();
+                        const checkout = this.testModeCheckout.checkout;
+                        const razorpay = new window.Razorpay({
+                            key: checkout.key_id, amount: checkout.amount, currency: checkout.currency,
+                            name: checkout.name, description: checkout.description, order_id: checkout.order_id,
+                            theme: {color: '#075985'},
+                            handler: async (response) => {
+                                await fetch('/api/test-mode/orders/' + checkout.order_id + '/checkout-return', {
+                                    method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(response)
+                                });
+                                await this.refreshTestModeStatus();
+                            },
+                            modal: {ondismiss: () => { this.testModeLoading = false; }}
+                        });
+                        razorpay.on('payment.failed', () => { this.testModeError = 'Test checkout was not completed. No payment evidence was recorded.'; });
+                        razorpay.open();
+                    } catch (e) {
+                        this.testModeError = e.message;
+                    }
+                    this.testModeLoading = false;
+                    this.$nextTick(() => lucide.createIcons());
+                },
+
+                async runGate() {
+                    this.gateLoading = true;
+                    this.gateResult = null;
+                    try {
+                        const r = await fetch('/api/gate', {
+                            method: 'POST',
+                            headers: {'Content-Type': 'application/json'},
+                            body: JSON.stringify({intent_items: this.intentItems, cart_items: this.cartItems})
+                        });
+                        this.gateResult = await r.json();
+                    } catch(e) { console.error(e); }
+                    this.gateLoading = false;
+                    this.$nextTick(() => lucide.createIcons());
+                },
+
+                async doScan() {
+                    this.scanLoading = true;
+                    this.scanResult = null;
+                    try {
+                        const r = await fetch('/api/scan', {
+                            method: 'POST',
+                            headers: {'Content-Type': 'application/json'},
+                            body: JSON.stringify({text: this.scanText, after_refusal: this.scanRefusal})
+                        });
+                        this.scanResult = await r.json();
+                    } catch(e) { console.error(e); }
+                    this.scanLoading = false;
+                    this.$nextTick(() => lucide.createIcons());
+                },
+
+                async runSettle() {
+                    this.settleLoading = true;
+                    this.settleResult = null;
+                    try {
+                        const r = await fetch('/api/settlement', {
+                            method: 'POST',
+                            headers: {'Content-Type': 'application/json'},
+                            body: JSON.stringify(this.settleData)
+                        });
+                        this.settleResult = await r.json();
+                    } catch(e) { console.error(e); }
+                    this.settleLoading = false;
+                    this.$nextTick(() => lucide.createIcons());
+                },
+
+                async runNarration() {
+                    this.narrationLoading = true;
+                    this.narrationResult = null;
+                    try {
+                        const r = await fetch('/api/narration', {
+                            method: 'POST',
+                            headers: {'Content-Type': 'application/json'},
+                            body: JSON.stringify({narration: this.narrationText})
+                        });
+                        this.narrationResult = await r.json();
+                    } catch(e) { console.error(e); }
+                    this.narrationLoading = false;
+                    this.$nextTick(() => lucide.createIcons());
+                },
+
+                async loadDiary(sid) {
+                    this.diaryLoading = true;
+                    this.diaryData = null;
+                    try {
+                        const r = await fetch('/api/diary/' + sid);
+                        this.diaryData = await r.json();
+                    } catch(e) { console.error(e); }
+                    this.diaryLoading = false;
+                    this.$nextTick(() => lucide.createIcons());
+                },
+
+                async loadDispute(sid) {
+                    this.disputeLoading = true;
+                    this.disputeData = null;
+                    try {
+                        const r = await fetch('/api/dispute/' + sid);
+                        this.disputeData = await r.json();
+                    } catch(e) { console.error(e); }
+                    this.disputeLoading = false;
+                    this.$nextTick(() => lucide.createIcons());
+                }
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            lucide.createIcons();
+            setInterval(() => lucide.createIcons(), 2000);
+        });
+    </script>
+</body>
+</html>

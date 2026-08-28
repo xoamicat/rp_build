@@ -24,6 +24,7 @@ from fastapi.responses import JSONResponse
 from ..config import Settings
 from ..gateway import StubGateway
 from ..ledger import Ledger
+from ..webhooks import RazorpayWebhookIngestor, WebhookSignatureError
 
 _SENSITIVE = {"card", "cvv", "number", "expiry_month", "expiry_year", "contact", "email", "vpa"}
 
@@ -107,10 +108,28 @@ def create_app(ledger: Ledger, settings: Optional[Settings] = None, forward: Opt
     app.state.ledger = ledger
     app.state.stub = stub
     app.state.forward = forward
+    app.state.webhooks = RazorpayWebhookIngestor(ledger, settings.razorpay_webhook_secret) \
+        if settings.razorpay_webhook_secret else None
 
     @app.get("/healthz")
     async def healthz():
-        return {"ok": True, "mode": "forward" if forward else "stub", "events": len(ledger.events())}
+        return {"ok": True, "mode": "forward" if forward else "stub", "events": len(ledger.events()),
+                "webhook_verification": app.state.webhooks is not None}
+
+    @app.post("/webhooks/razorpay")
+    async def razorpay_webhook(request: Request):
+        if app.state.webhooks is None:
+            return JSONResponse({"error": "webhook verification is not configured"}, status_code=503)
+        raw = await request.body()
+        try:
+            receipt = app.state.webhooks.ingest(
+                raw, request.headers.get("x-razorpay-signature"), request.headers.get("x-razorpay-event-id")
+            )
+        except WebhookSignatureError:
+            return JSONResponse({"error": "invalid webhook signature"}, status_code=401)
+        except ValueError as exc:
+            return JSONResponse({"error": str(exc)}, status_code=400)
+        return JSONResponse(receipt.as_dict(), status_code=200)
 
     @app.api_route("/v1/{path:path}", methods=["GET", "POST", "PATCH", "PUT", "DELETE"])
     async def intercept(path: str, request: Request):

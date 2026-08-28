@@ -16,6 +16,7 @@ from pathlib import Path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from kasauti.calibrate import LabelSet, agreement, calibrate, label_files, load_runs  # noqa: E402
+from kasauti.provenance import load_manifest  # noqa: E402
 from kasauti.report import load_mix, render, rows_to_results, write  # noqa: E402
 from sakshi.memory import CorrectionMemory  # noqa: E402
 
@@ -24,7 +25,7 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--runs", default="data/runs")
     ap.add_argument("--out", default="data/reports/report.md")
-    ap.add_argument("--judge", default="see run output")
+    ap.add_argument("--judge", default=None, help="deprecated display override; provenance is preferred")
     ap.add_argument("--merchant", default="merchant_demo")
     args = ap.parse_args()
 
@@ -44,8 +45,16 @@ def main() -> None:
                                                who=s.labeler) for s in sets)
         print(f"corrections learned from labels: {learned} (memory now holds {len(memory)})")
 
+    manifest = load_manifest(Path(args.runs) / "run-manifest.json")
+    judge_name = (manifest or {}).get("provider", "unknown (run-manifest.json missing)")
+    if args.judge:
+        judge_name = f"{judge_name}; display override: {args.judge}"
+    notes = None
+    if manifest:
+        simulation = manifest.get("simulation", {})
+        notes = [f"Run provenance: {Path(args.runs) / 'run-manifest.json'}."] + list(simulation.values())
     text = render(rows_to_results(naive_rows), rows_to_results(guarded_rows), mix=mix, calibration=cal,
-                  agreement=agr, judge_name=args.judge)
+                  agreement=agr, judge_name=judge_name, notes=notes)
     path = write(Path(args.out), text)
     print(f"report written to {path}")
     if cal:

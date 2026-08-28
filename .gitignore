@@ -1,4 +1,5 @@
 .env
+.atlas-evidence.env
 __pycache__/
 *.pyc
 .pytest_cache/

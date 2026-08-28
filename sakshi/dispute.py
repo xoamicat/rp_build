@@ -21,15 +21,19 @@ hashed event.
 from __future__ import annotations
 
 import json
+import hashlib
 from dataclasses import dataclass, field
 from datetime import date, datetime
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 
 from .checkers.base import Status
 from .fx.fbil import RateRef, confidence_for
 from .ledger import Event, Ledger
 from .models import MerchantConfig
 from .settlements.fees import FeeSchedule, refund_fee_burn
+
+if TYPE_CHECKING:
+    from .evidence import EvidenceSigner
 
 CLAIM_TYPES = ("not_authorized", "wrong_item", "amount_differs", "not_received", "other")
 
@@ -59,12 +63,15 @@ class ChainView:
     checks: list[dict] = field(default_factory=list)  # {type, payload}
     gates: list[dict] = field(default_factory=list)
     overrides: list[dict] = field(default_factory=list)
+    policy_corrections: list[dict] = field(default_factory=list)
     order: Optional[dict] = None
     order_verdicts: list[dict] = field(default_factory=list)
     payment: Optional[dict] = None
     refunds: list[dict] = field(default_factory=list)
     settlement: Optional[dict] = None
     reconcile: Optional[dict] = None
+    offer_lock: Optional[dict] = None
+    offer_drift_checks: list[dict] = field(default_factory=list)
     rzp_calls: int = 0
 
     @classmethod
@@ -83,6 +90,8 @@ class ChainView:
                 v.gates.append(p)
             elif t == "human.override":
                 v.overrides.append(p)
+            elif t == "policy.correction":
+                v.policy_corrections.append(p)
             elif t == "rzp.order.created":
                 v.order = p
             elif t == "order.verdict":
@@ -95,6 +104,10 @@ class ChainView:
                 v.settlement = p
             elif t == "reconcile.verdict":
                 v.reconcile = p
+            elif t == "offer.locked":
+                v.offer_lock = p
+            elif t == "offer.drift.checked":
+                v.offer_drift_checks.append(p)
             elif t.startswith("rzp.request"):
                 v.rzp_calls += 1
         return v
@@ -123,6 +136,14 @@ class ChainView:
     @property
     def paid(self) -> bool:
         return self.payment is not None
+
+    @property
+    def corrections(self) -> list[dict]:
+        return self.overrides + self.policy_corrections
+
+    @property
+    def latest_offer_drift(self) -> Optional[dict]:
+        return self.offer_drift_checks[-1] if self.offer_drift_checks else None
 
 
 @dataclass
@@ -165,6 +186,7 @@ class DisputeAgent:
     merchant: MerchantConfig
     fees: FeeSchedule = field(default_factory=FeeSchedule)
     min_confidence_for_auto: float = 0.75
+    signer: Optional["EvidenceSigner"] = None
 
     # ------------------------------------------------------------- entry point
     def decide(self, txn: str, claim: DisputeClaim, fx_now: Optional[RateRef] = None,
@@ -172,7 +194,10 @@ class DisputeAgent:
         chain = ChainView.load(self.ledger, txn)
         if record:
             self.ledger.append(txn, "dispute.opened", "customer",
-                               {"type": claim.type, "text": claim.text, "opened_on": claim.opened_on.isoformat()})
+                               {"type": claim.type,
+                                "claim_hash": hashlib.sha256(claim.text.encode("utf-8")).hexdigest(),
+                                "claimed_amount_paise": claim.claimed_amount_paise,
+                                "opened_on": claim.opened_on.isoformat()})
         rec, amount, conf, reasons = self._rule(chain, claim)
         cost = self._cost_of_refund(chain, amount, claim, fx_now)
         if chain.paid:
@@ -202,6 +227,16 @@ class DisputeAgent:
         hash_ok = c.hash_rides_with_money
         approved = any(o.get("decision") in ("approved", "corrected") for o in c.overrides)
 
+        if self.merchant.extra.get("require_signed_evidence") and not self.signed_evidence_valid(c.txn):
+            return "ESCALATE", 0, 0.4, ["merchant policy requires a valid signed evidence seal for an automated dispute decision"]
+
+        drift = c.latest_offer_drift
+        if drift and drift.get("status") in ("RECONFIRM", "ESCALATE") and claim.type in ("wrong_item", "amount_differs"):
+            return "ESCALATE", 0, 0.55, [
+                "a material Offer Lock drift check occurred after buyer consent",
+                "do not rely on the original approval to contest this claim; obtain the later buyer confirmation or review it manually",
+            ]
+
         if intent is None:
             return "ESCALATE", 0, 0.4, ["order was not created through the gate: no intent record to compare against"]
         if hash_ok is False:
@@ -226,7 +261,7 @@ class DisputeAgent:
             if cart_matched:
                 return "CONTEST", 0, 0.85 if hash_ok else 0.7, reasons + [
                     f"cart matched the stated intent ({intent.get('playback')}) before payment",
-                    "gate verdict: " + str(gate)] + ([f"corrected before payment: {o.get('note')}" for o in c.overrides])
+                    "gate verdict: " + str(gate)] + ([f"corrected before payment: {o.get('note')}" for o in c.corrections])
             if gate == "BLOCK":
                 return "REFUND", paid_amount, 0.9, reasons + [
                     "the gate blocked this cart and it was paid anyway: agent error",
@@ -275,6 +310,7 @@ class DisputeAgent:
     # ---------------------------------------------------------- evidence pack
     def evidence_pack(self, c: ChainView, claim: DisputeClaim, cost: dict) -> list[dict]:
         ok, bad = self.ledger.verify()
+        seal_present = any(event.type == "evidence.sealed" for event in c.events)
         pay, order, intent = c.payment or {}, c.order or {}, c.intent or {}
         cart = c.final_cart or {}
         return [
@@ -298,7 +334,8 @@ class DisputeAgent:
             {"section": "5. Verification before payment", "items": {
                 "gate": (c.final_gate or {}).get("status"), "gate_reasons": (c.final_gate or {}).get("reasons"),
                 "order_check": (c.order_verdicts[-1].get("status") if c.order_verdicts else None),
-                "human_overrides": [f"{o.get('who')}: {o.get('decision')} ({o.get('note')})" for o in c.overrides]}},
+                "human_overrides": [f"{o.get('who')}: {o.get('decision')} ({o.get('note')})" for o in c.overrides],
+                "policy_corrections": [f"{o.get('decision')} ({o.get('note')})" for o in c.policy_corrections]}},
             {"section": "6. Settlement", "items": {
                 "settlement_id": (c.settlement or {}).get("settlement_id"), "settled": _rs((c.settlement or {}).get("amount")),
                 "fee": _rs((c.settlement or {}).get("fee")), "tax": _rs((c.settlement or {}).get("tax")),
@@ -309,8 +346,21 @@ class DisputeAgent:
             {"section": "8. Cost of refunding", "items": cost},
             {"section": "9. Integrity", "items": {
                 "ledger_verified": ok, "first_bad_event": bad, "events": len(c.events),
-                "first_hash": c.events[0].hash if c.events else None, "last_hash": c.events[-1].hash if c.events else None}},
+                "signed_chain_seal_present": seal_present,
+                "signed_chain_seal_verified": self.signed_evidence_valid(c.txn) if seal_present else False,
+                "lock_id": (c.offer_lock or {}).get("lock_id"),
+                "terms_hash": (c.offer_lock or {}).get("terms_hash"),
+                "catalog_version": (c.offer_lock or {}).get("catalog_version"),
+                "latest_drift_status": (c.latest_offer_drift or {}).get("status"),
+                "latest_deltas": (c.latest_offer_drift or {}).get("deltas", []),
+                "first_hash": c.events[0].hash if c.events else None, "last_hash": c.events[-1].hash if c.events else None,
+            }},
         ]
+
+    def signed_evidence_valid(self, txn: str) -> bool:
+        return bool(self.signer and self.signer.verify_latest_seal(
+            self.ledger, txn, self.signer.public_key_b64
+        ))
 
     # ------------------------------------------------------------ explanation
     def explain(self, c: ChainView, claim: DisputeClaim, rec: str, amount: int, cost: dict) -> str:
@@ -324,8 +374,8 @@ class DisputeAgent:
         gate = (c.final_gate or {}).get("status")
         parts = [f"On {when} you asked for: {intent.get('playback') or 'an order'}.",
                  f"The assistant prepared {lines_txt}."]
-        if c.overrides:
-            parts.append("Before payment the order was corrected: " + "; ".join(o.get("note", "") for o in c.overrides) + ".")
+        if c.corrections:
+            parts.append("Before payment the order was corrected: " + "; ".join(o.get("note", "") for o in c.corrections) + ".")
         elif gate == "BLOCK":
             parts.append("Our check flagged this order before payment, but it was paid anyway.")
         parts.append(f"You were charged {paid} via {pay.get('method', 'your payment method')}.")

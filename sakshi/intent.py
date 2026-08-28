@@ -103,6 +103,16 @@ class IntentReceipt:
             "created_at": self.created_at,
         }
 
+    def proof_payload(self) -> dict:
+        """The minimum privacy-safe intent record that is signed by Sakshi."""
+        return {
+            "type": "sakshi.intent.v1",
+            "txn": self.txn,
+            "intent_hash": self.intent_hash(),
+            "utterance_hash": self.utterance_hash(),
+            "created_at": round(self.created_at, 3),
+        }
+
     def to_notes(self, gate_verdict: Optional[str] = None, extra: Optional[dict] = None) -> dict:
         """Razorpay-safe notes. Keys are prefixed so they never collide with the merchant's own."""
         notes = {

@@ -79,7 +79,7 @@ def test_guarded_agent_corrects_and_records_override():
     guarded.reply("Two margheritas please, under 800.")
     reply = guarded.reply("Place the order.")
     types = [e.type for e in engine2.ledger.chain("t")]
-    assert "human.override" in types and reply.gate is not None
+    assert "policy.correction" in types and "human.override" not in types and reply.gate is not None
     assert reply.gate.status.value in ("PASS", "FLAG")
 
 

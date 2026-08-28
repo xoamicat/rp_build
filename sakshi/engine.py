@@ -7,7 +7,7 @@ Stage 3 (dispute, which is the same checkers in explain mode) come next.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 
 from .checkers.base import CheckContext, Checker, Status, Verdict, aggregate, total_impact
 from .fx.fbil import RateRef
@@ -15,6 +15,10 @@ from .intent import IntentReceipt
 from .ledger import Event, Ledger
 from .models import Cart, MerchantConfig
 from .settlements.fees import FeeSchedule
+from .settlements.recon import normalize_recon_line, require_linked_transaction
+
+if TYPE_CHECKING:
+    from .evidence import EvidenceSigner, SignedEvidence
 
 
 @dataclass
@@ -61,10 +65,17 @@ class Engine:
     merchant: MerchantConfig
     checkers: list[Checker] = field(default_factory=list)
     fees: FeeSchedule = field(default_factory=FeeSchedule)
+    signer: Optional["EvidenceSigner"] = None
+    _intent_proofs: dict[str, "SignedEvidence"] = field(default_factory=dict, init=False, repr=False)
 
     # ------------------------------------------------------------ stage 1
     def capture_intent(self, intent: IntentReceipt) -> Event:
-        return self.ledger.append(intent.txn, "intent.captured", "customer", intent.ledger_payload())
+        payload = intent.ledger_payload()
+        if self.signer is not None:
+            proof = self.signer.sign(intent.proof_payload())
+            self._intent_proofs[intent.txn] = proof
+            payload["signed_evidence"] = proof.as_dict()
+        return self.ledger.append(intent.txn, "intent.captured", "customer", payload)
 
     def gate(self, intent: IntentReceipt, cart: Cart, content: Optional[list[str]] = None,
              fx: Optional[RateRef] = None) -> GateResult:
@@ -91,7 +102,10 @@ class Engine:
                 "intent_hash": intent.intent_hash(),
             },
         )
-        return GateResult(intent.txn, status, verdicts, impact, intent.to_notes(gate_verdict=status.value), ev)
+        proof = self._intent_proofs.get(intent.txn)
+        proof_notes = proof.note_fields() if proof is not None else None
+        return GateResult(intent.txn, status, verdicts, impact,
+                          intent.to_notes(gate_verdict=status.value, extra=proof_notes), ev)
 
     # ------------------------------------------------------------ order (between stage 1 and 2)
     def check_order(self, intent: IntentReceipt, cart: Cart, order: dict, prepayment: bool = True) -> StageResult:
@@ -140,6 +154,14 @@ class Engine:
             payload["corrected_cart"] = corrected_cart.as_dict()
         return self.ledger.append(txn, "human.override", "human", payload)
 
+    def record_policy_correction(self, txn: str, decision: str, note: str = "",
+                                 corrected_cart: Optional[Cart] = None) -> Event:
+        """Record automatic policy action without misrepresenting it as human approval."""
+        payload = {"decision": decision, "note": note, "who": "policy"}
+        if corrected_cart is not None:
+            payload["corrected_cart"] = corrected_cart.as_dict()
+        return self.ledger.append(txn, "policy.correction", "sakshi_policy", payload)
+
     # ------------------------------------------------------------ razorpay events
     def record_order(self, txn: str, order: dict) -> Event:
         return self.ledger.append(txn, "rzp.order.created", "razorpay", _slim(order))
@@ -152,6 +174,17 @@ class Engine:
 
     def record_settlement_line(self, txn: str, line: dict) -> Event:
         return self.ledger.append(txn, "settlement.line", "bank", line)
+
+    def ingest_recon_line(self, txn: str, row: dict) -> Event:
+        """Validate/link an external Settlement Recon record before it becomes ledger evidence."""
+        return self.record_settlement_line(txn, require_linked_transaction(normalize_recon_line(row), txn))
+
+    def seal_transaction(self, txn: str) -> Optional["SignedEvidence"]:
+        """Anchor the completed transaction with a cryptographic signature when configured."""
+        return self.signer.seal_transaction(self.ledger, txn) if self.signer is not None else None
+
+    def signed_evidence_valid(self, txn: str) -> bool:
+        return bool(self.signer and self.signer.verify_latest_seal(self.ledger, txn, self.signer.public_key_b64))
 
     # ------------------------------------------------------------ explain (Stage 3 reads this)
     def explain(self, txn: str) -> list[dict]:

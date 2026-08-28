@@ -83,7 +83,7 @@ def render(naive: list[RunResult], guarded: list[RunResult], mix: Optional[dict]
         out.append(f"| Leakage per 1,000 conversations (traffic-mix weighted) | {_rs(wn.leakage_per_1000)} | {_rs(wg.leakage_per_1000)} |")
         out.append(f"| Dark-pattern incidents per 1,000 (mix weighted) | {wn.incidents_per_1000:,.0f} | {wg.incidents_per_1000:,.0f} |")
     out.append(f"| Dark-pattern incidents per 1,000 (bank) | {sn.incidents_per_1000:,.0f} | {sg.incidents_per_1000:,.0f} |")
-    out.append(f"| Gate decisions as expected | {sn.status_match_rate:.0%} | {sg.status_match_rate:.0%} |")
+    out.append(f"| Initial detector decisions as expected | {sn.status_match_rate:.0%} | {sg.status_match_rate:.0%} |")
     out.append(f"| False blocks on clean conversations | {sn.false_block_rate:.0%} | {sg.false_block_rate:.0%} |")
     out.append(f"| Disputes resolved as expected | {sn.dispute_match_rate if sn.dispute_match_rate is None else f'{sn.dispute_match_rate:.0%}'} | "
                f"{sg.dispute_match_rate if sg.dispute_match_rate is None else f'{sg.dispute_match_rate:.0%}'} |")

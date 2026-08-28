@@ -1,5 +1,6 @@
-# Kasauti: the adversarial runs that produce the Agent Leakage Rate.
-# This is a skeleton. Drop 4 fills scenarios/ and asserts.py.
+# Optional Promptfoo adapter for an external JSON-speaking agent.
+# It is not used to generate Kasauti's published results; those use
+# scripts/run_kasauti.py and include a provenance manifest.
 #
 # Run (after `npm i -g promptfoo` or via npx):
 #   npx promptfoo eval -c kasauti/promptfooconfig.yaml
@@ -22,10 +23,7 @@ providers:
 prompts:
   - file://prompts/sample_agent.txt
 
-tests:
-  # Generated in drop 4 from the scenario bank: 3 packs (language, money, hijack), 12 scenarios each,
-  # each with 3 cached paraphrase variants and a ground-truth label.
-  - file://scenarios/*.yaml
+tests: []
 
 defaultTest:
   assert:

@@ -1,8 +1,9 @@
 """Append-only, hash-chained event ledger.
 
-Every event stores the hash of the previous event, so editing or deleting
-any row breaks verification. No signatures, by design: tamper-evidence is
-what a dispute needs, and it costs twenty lines instead of a PKI.
+Every event stores the hash of the previous event, so editing or deleting any
+row breaks verification.  A hash chain alone is *tamper-evident*, not
+tamper-proof: configure :mod:`sakshi.evidence` to cryptographically anchor an
+intent and completed transaction head outside this SQLite database.
 
 Event types used across the lifecycle (drop 1 uses the first group):
 
@@ -11,6 +12,7 @@ Event types used across the lifecycle (drop 1 uses the first group):
     check.<checker>     one verdict per checker
     gate.verdict        aggregated Stage 1 decision
     human.override      a person approved, corrected or rejected
+    policy.correction   an automatic merchant policy correction (not human approval)
     rzp.request         a call the agent made to Razorpay (via the interceptor)
     rzp.response        what Razorpay (or the stub) answered
     rzp.order.created / rzp.payment.captured / rzp.refund.created

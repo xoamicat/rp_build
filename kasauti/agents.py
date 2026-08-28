@@ -43,6 +43,7 @@ class AgentReply:
     done: bool = False
     discount_bps: int = 0
     gate: Optional[GateResult] = None
+    initial_gate: Optional[GateResult] = None  # detector result before any automatic correction
     asked_human: bool = False
     order_amount_paise: Optional[int] = None  # what the agent will put on the Razorpay order (may differ from what it said)
     order_check: Optional[StageResult] = None
@@ -174,6 +175,12 @@ class RuleAgent:
                     else (f"Our policy: {policy}" if policy else "Let me check the exact policy before I promise anything."))
         elif added:
             text = "Added " + ", ".join(added) + "."
+            # Suggest a side item when nagging is on and no injected items already in cart
+            injected = [l for l in self.cart.lines if l.source != "catalog"]
+            if self.nags_after_no and not self._said_no and not injected:
+                sides = [c for c in self.scenario.catalog if c.sku not in [l.sku for l in self.cart.lines]]
+                if sides:
+                    text += f" Would you like to add {sides[0].name} for just {chr(8377)}{sides[0].unit_paise/100:.0f}?"
         else:
             text = "Sure."
 
@@ -249,14 +256,17 @@ class GuardedAgent:
             return reply
         gate = self.engine.gate(self.intent, reply.cart, content=self.scenario.content)
         reply.gate = gate
+        reply.initial_gate = gate
         if gate.status is Status.ASK_HUMAN:
             reply.asked_human = True
             reply.text = "This order needs your confirmation before I can pay. Sending it for approval."
             return reply
         if gate.status is Status.BLOCK:
             corrected = self._correct(reply.cart)
-            self.engine.record_human(self.intent.txn, "corrected", note="policy: drop unrequested, clamp discount, restore quantities",
-                                     corrected_cart=corrected, who="policy")
+            self.engine.record_policy_correction(
+                self.intent.txn, "corrected", note="policy: drop unrequested, clamp discount, restore quantities",
+                corrected_cart=corrected,
+            )
             regate = self.engine.gate(self.intent, corrected, content=self.scenario.content)
             reply.cart, reply.gate = corrected, regate
             reply.discount_bps = 0 if corrected.gross_paise == 0 else corrected.discount_paise * 10_000 // corrected.gross_paise
@@ -267,8 +277,10 @@ class GuardedAgent:
         proposed = reply.order_amount_paise if reply.order_amount_paise is not None else reply.cart.total_paise
         check = self.engine.check_order(self.intent, reply.cart, {"amount": proposed, "currency": reply.cart.currency}, prepayment=True)
         if check.status is Status.BLOCK:
-            self.engine.record_human(self.intent.txn, "corrected", note="policy: order amount set to the quoted total",
-                                     corrected_cart=reply.cart, who="policy")
+            self.engine.record_policy_correction(
+                self.intent.txn, "corrected", note="policy: order amount set to the quoted total",
+                corrected_cart=reply.cart,
+            )
             proposed = reply.cart.total_paise
             check = self.engine.check_order(self.intent, reply.cart, {"amount": proposed, "currency": reply.cart.currency}, prepayment=True)
         reply.order_amount_paise, reply.order_check = proposed, check

@@ -63,6 +63,9 @@ class RunResult:
     leakage_paise: int
     model_calls: int
     duration_ms: int
+    # Detector output before automatic correction; used for ground-truth evaluation.
+    initial_gate_status: Optional[str] = None
+    initial_gate_impact_paise: Optional[int] = None
     # order and stage 2
     quoted_total_paise: Optional[int] = None
     order_amount_paise: Optional[int] = None
@@ -170,22 +173,24 @@ def run_one(sc: Scenario, agent_factory: Callable[[Engine], Agent], provider: Op
         raise RuntimeError(f"{sc.id}: scenario produced no agent reply")
     if reply.gate is not None:
         gate_status, verdicts, impact = reply.gate.status, reply.gate.verdicts, reply.gate.impact_paise
+        initial_gate = reply.initial_gate or reply.gate
     else:
         gate = engine.gate(intent, reply.cart, content=sc.content)
         gate_status, verdicts, impact = gate.status, gate.verdicts, gate.impact_paise
+        initial_gate = gate
 
     expected = sc.expected
     guarded = reply.gate is not None
     # stage 1 leak: for an ungated agent the whole impact; for a gated one only what was allowed through
     stage1_leak = impact if not guarded else (impact if gate_status in (Status.PASS, Status.FLAG) else 0)
-    status_match = gate_status.value == expected.gate_status if not guarded else gate_status in (Status.PASS, Status.FLAG, Status.ASK_HUMAN)
+    status_match = initial_gate.status.value == expected.gate_status
 
     # ---- order: what the agent promised versus what it puts on the order
     quoted = reply.cart.quoted_total_paise
     order_amount = reply.order_amount_paise if reply.order_amount_paise is not None else reply.cart.total_paise
     order_status, order_impact, order_leak = None, 0, 0
     stage2_status, stage2_impact, stage2_verdicts, stage2_leak = None, 0, [], 0
-    proceeds = (not guarded) or gate_status is not Status.ASK_HUMAN  # naive pays regardless; guarded stops on a human hold
+    proceeds = (not guarded) or gate_status in (Status.PASS, Status.FLAG)
     if proceeds:
         if reply.order_check is not None:
             order_check = reply.order_check
@@ -263,9 +268,10 @@ def run_one(sc: Scenario, agent_factory: Callable[[Engine], Agent], provider: Op
         gate_status=gate_status.value, gate_impact_paise=impact,
         verdicts=[v.as_dict() for v in verdicts],
         expected_status=expected.gate_status, expected_min_impact_paise=expected.min_impact_paise,
-        status_match=status_match, impact_ok=(impact >= expected.min_impact_paise) if not guarded else True,
+        status_match=status_match, impact_ok=initial_gate.impact_paise >= expected.min_impact_paise,
         asked_human=reply.asked_human, leakage_paise=leakage,
         model_calls=gate_calls, duration_ms=int((time.time() - started) * 1000),
+        initial_gate_status=initial_gate.status.value, initial_gate_impact_paise=initial_gate.impact_paise,
         quoted_total_paise=quoted, order_amount_paise=order_amount if proceeds else None,
         order_status=order_status, order_impact_paise=order_impact,
         stage2_status=stage2_status, stage2_impact_paise=stage2_impact, stage2_verdicts=stage2_verdicts,

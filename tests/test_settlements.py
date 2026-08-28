@@ -1,5 +1,8 @@
 from sakshi.gateway import StubGateway
-from sakshi.settlements import RECON_FIELDS, FeeSchedule, join_settlement_to_intent, refund_fee_burn, settlement_lines
+import pytest
+
+from sakshi.settlements import (RECON_FIELDS, FeeSchedule, ReconRecordError, join_settlement_to_intent,
+                                normalize_recon_line, refund_fee_burn, require_linked_transaction, settlement_lines)
 
 
 def test_fee_math():
@@ -45,3 +48,15 @@ def test_refund_fee_burn():
     assert burn["burn_paise"] == 2_000 + 360
     half = refund_fee_burn(pay, 50_000, FeeSchedule())
     assert half["burn_paise"] == 1_180
+
+
+def test_external_recon_row_is_normalised_and_must_match_transaction():
+    raw = {"entity_id": "pay_1", "type": "payment", "amount": "64000", "fee": "1280", "tax": "230",
+           "credit": "62490", "notes": '{"sakshi_txn":"txn_1"}', "order_id": "order_1"}
+    line = normalize_recon_line(raw)
+    assert line["amount"] == 64_000 and line["notes"]["sakshi_txn"] == "txn_1"
+    assert require_linked_transaction(line, "txn_1") is line
+    with pytest.raises(ReconRecordError):
+        require_linked_transaction(line, "txn_other")
+    with pytest.raises(ReconRecordError):
+        normalize_recon_line({"amount": "not-money", "notes": {}})

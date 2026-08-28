@@ -1,37 +1,51 @@
-# Sakshi
+# SettleX Atlas
 
-**The witness layer for agent-initiated payments on Razorpay.**
+**A signed, privacy-safe Offer Lock for agent-initiated commerce on Razorpay.**
 
-When an AI agent buys on a customer's behalf, UPI Reserve Pay proves that money up to a cap was
-pre-approved. Nothing proves what the customer asked for, whether the agent stayed inside that
-intent, what the agent promised versus what was charged, or what actually settled. When the
-customer says "I never wanted this," the merchant has no evidence and refunds.
+When an AI agent buys on a customer's behalf, payment authorisation does not prove that the
+price, items, delivery promise, return terms and renewal conditions the buyer saw stayed the
+same until fulfilment. **Agentic Offer Lock** creates a versioned, Ed25519-signed snapshot of
+those buyer-visible terms, carries a compact reference in Razorpay Orders `notes`, and asks for
+fresh approval whenever the later fulfilment or renewal materially drifts.
 
-Sakshi records the intent, gates the cart against it before payment, reconciles promise against
-charge against settlement after payment, and turns disputes into evidence. Razorpay validates the
-money. Sakshi validates the words, and the receipt rides along.
+Razorpay remains the payment system. Atlas is a complementary commercial-evidence sidecar for
+external buyer agents, merchant agents, OMS/fulfilment systems and dispute reviewers. The earlier
+Sakshi gate, SettleX settlement analysis and Kasauti evaluation harness remain as supporting
+modules; they are not presented as replacements for Razorpay Agent Studio, Smart Collect or
+native Agentic Payments.
 
-## One engine, four moments
+**AI boundary:** a configured Gemini or Ollama model can turn a buyer's natural-language request
+into a structured offer *draft*. It may select only merchant-catalogue SKUs and quantities; server
+code hydrates prices, delivery and policy terms, records only input/output hashes for provenance,
+and requires an explicit buyer confirmation before signing. The model never decides consent,
+payment, or the drift verdict.
 
-Every stage is the same primitive: a **claim** is recorded, an **observation** arrives, a
-**checker** compares them, a **verdict** with a rupee impact is written to a hash-chained **ledger**.
+For the Buildathon positioning and overlap analysis, start with [VALIDATION.md](VALIDATION.md) and [GAP_ANALYSIS.md](GAP_ANALYSIS.md), then read [SUBMISSION.md](SUBMISSION.md), [INTEGRATION.md](INTEGRATION.md), [SECURITY.md](SECURITY.md), and [DEMO.md](DEMO.md).
+
+## One commercial commitment, four supporting moments
+
+The primary primitive is the **Offer Lock**: the final buyer-visible offer is canonicalised,
+signed, and compared with the current offer before fulfilment or renewal. The earlier Sakshi,
+SettleX and Kasauti capabilities remain supporting evidence and assurance layers.
 
 | Moment | Claim | Observation | Checkers |
 |---|---|---|---|
-| 1. Gate (before payment) | intent: items, cap, mandate | the cart the agent built, the content it read | price cap, quantity/SKU drift, discount ceiling, human-approval threshold, injection pre-filter |
-| 2. Reconcile (after payment) | what the agent promised | order, payment, settlement line | promise-to-order variance, order-to-settlement fees, applied rate vs FBIL, refund fee burn |
-| 3. Dispute | the whole chain | the customer's claim | the same checkers in explain mode, plus dispute-day FX exposure |
-| 4. Learn | human overrides | later cases | checker calibration from corrections |
+| 1. Lock (after buyer sees final offer) | versioned items, price, delivery, policies, renewal terms | opaque buyer approval reference | canonical hash + Ed25519 signature |
+| 2. Recheck (before shipment / substitution / renewal) | signed Offer Lock | current merchant catalogue / OMS terms | allow, reconfirm, or identity escalation |
+| 3. Reconcile (after payment) | order and promise | payment and settlement line | fee, FX and refund-burn variance |
+| 4. Review and test | evidence chain and agent behaviour | dispute claim and adversarial scenarios | explainable recommendation + release assurance |
 
-### The Intent Receipt rides in `notes`
+### Compact proof references ride in `notes`
 
 Razorpay entities carry a `notes` object (up to 15 key-value pairs, 256 characters each), and the
-Settlement Recon API returns `notes` and `order_id` on every settled line. Sakshi writes the intent
-hash, a short playback, the cap and the mandate reference into the order's notes at creation. From
-then on the intent travels with the money: into the payment, into the settlement report, into the
-dispute. No new fields, no side database.
+Settlement Recon API returns `notes` and `order_id` on every settled line. Atlas writes only the
+Offer Lock ID, version, signing key ID and signature into the order's notes at creation. The full
+signed commercial snapshot stays in the merchant's encrypted evidence store; the short reference
+travels with the payment, settlement report and later review. `SakshiCheckout` validates the total
+15-key budget before it creates the order.
 
-Privacy: the raw customer utterance is never stored, only its hash and the agent's playback.
+Privacy: raw customer conversation, payment credentials, address, phone number and UPI identifier
+never enter Razorpay `notes` or the Offer Lock.
 
 ## Quickstart
 
@@ -39,20 +53,52 @@ Privacy: the raw customer utterance is never stored, only its hash and the agent
 python -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 cp .env.example .env                                  # leave keys blank for stub mode
-pytest                                                # 79 tests, no network
+pytest                                                # no network required after dependency install
 python scripts/demo_drop1.py                          # one transaction, end to end
 python scripts/demo_dispute.py                        # two disputes: agent error (refund), cross-border (contest, priced)
+python scripts/verify_razorpay_test_mode.py --create  # opt-in: create + fetch one unpaid real Razorpay Test Mode order
 ```
+
+The last command refuses live-mode keys and writes a safe verification artifact (order ID and
+note keys only) to `data/evidence/`. It is intentionally not a payment capture.
+
+### Shareable demo routes
+
+The dashboard is a single-page demo with real browser history routes, so a judge can open a specific
+screen directly:
+
+| Route | Screen |
+|---|---|
+| `/offer-lock` | bounded AI → buyer-visible Offer Lock → fulfilment diff → Test Mode handoff |
+| `/evidence/<session-id>` | signed event journey for the active demo session |
+| `/claims/<session-id>` | buyer-claim recommendation from the same evidence chain |
+| `/release` | Kasauti release-gate results and run manifest |
+| `/checkout-safety`, `/intent-check`, `/speech-check`, `/settlements` | supporting safety sandboxes |
+
+The optional Test Mode UI path refuses live keys, uses Razorpay Checkout only after a deliberate
+click, and waits for a verified webhook before treating a payment as captured. See
+[INTEGRATION.md](INTEGRATION.md) for the public-HTTPS webhook setup.
+
+### Pilot readiness
+
+[PILOT_PLAN.md](PILOT_PLAN.md) turns the demo into a narrow, measurable merchant trial: exact
+input/output owners across the buyer agent, Razorpay and OMS; shadow-mode metrics; consented
+discovery questions; and the controls required before production. It deliberately makes no
+unverified adoption claim.
+
+For the judge walkthrough, open [SettleX_Atlas_Judge_Deck.pptx](SettleX_Atlas_Judge_Deck.pptx):
+six presentation-ready slides with speaker-note sources and the exact pilot ask. The final external
+rehearsal is documented in [WEBHOOK_REHEARSAL.md](WEBHOOK_REHEARSAL.md).
 
 Run Kasauti, the adversarial bank, at zero quota (rule-based judge):
 
 ```bash
-python scripts/run_kasauti.py            # naive agent vs guarded agent, 9 scenarios
+python scripts/run_kasauti.py            # naive agent vs guarded agent, scenario bank
 python scripts/run_kasauti.py --k 3      # repeats with paraphrase variants
 python scripts/run_kasauti.py --llm gemini   # real judge for the LLM checkers, cached in data/llm_cache.db
 python scripts/show_findings.py              # every dark-pattern finding with its quoted sentence
 python scripts/label_transcripts.py --labeler yourname   # hand-label the conversations (judge findings hidden)
-python scripts/report.py --judge gemini-3.1-flash-lite   # report + calibration; writes corrections into memory
+python scripts/report.py                              # report reads run provenance + calibration
 python scripts/run_kasauti.py --llm gemini --memory      # rerun with the humans' corrections applied
 ```
 
@@ -78,7 +124,8 @@ Deterministic checkers run first and are free. The two LLM checkers (semantic su
 injection judgement) only run when a deterministic checker found a semantic case, so a clean
 cart costs zero model calls. Every model response is cached by prompt hash
 (`sakshi/llm/cache.py`), so re-runs, re-judging and demos never spend quota twice. Development
-runs use `HeuristicJudge`, a rule-based stand-in; numbers you report come from a real judge.
+runs use `HeuristicJudge`, a rule-based stand-in. Treat any heuristic/cached report as a
+synthetic benchmark; record a real-model provider and human-label calibration before quoting it.
 
 ## Kasauti: the numbers
 
@@ -151,12 +198,10 @@ undisclosed delivery fee") maps a claim type to a recommendation. Batch 2 with `
 self-improving demo: the false positive from batch 1 is gone, and no new quota was spent because
 the transcripts are cached.
 
-First real-model batch (gemini-3.1-flash-lite, 21 uncached calls): the judge found the four
-language-pack patterns, two silent additions the scanner cannot see from phrasing (a third pizza,
-an injected garlic bread, both called drip pricing, a family match for basket sneaking), and one
-false positive (a clean USD tee order flagged because the price was only said at checkout). The
-scanner had zero false positives and missed those two. Merged is better than either, which is
-the design, and the false positive is what the labels are for.
+Every Kasauti run now writes `run-manifest.json` beside the JSONL artifacts. It records provider,
+seed, scenario ids, and simulation boundaries so a benchmark cannot quietly become a live-payment
+claim. The harness scores the detector’s **pre-correction** decision against ground truth and
+reports the corrected checkout separately.
 
 ### Stage 3: the dispute agent
 
@@ -178,6 +223,8 @@ threshold, or escalated is marked for a human.
 ```
 sakshi/
   ledger.py           append-only, hash-chained events (SQLite)
+  offer_lock.py       buyer-visible offer terms, canonical hash, Ed25519 signature, material-drift diff
+  offer_composer.py   constrained AI draft → server-side catalog validation → buyer review required
   intent.py           IntentReceipt -> Razorpay-safe notes, hashes, limits enforced
   models.py           Cart, CartLine, MerchantConfig
   checkers/           checker protocol; Stage 1 deterministic checkers; LLM checkers (llm.py); Stage 2 (stage2.py)
