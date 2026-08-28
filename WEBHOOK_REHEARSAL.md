@@ -14,16 +14,23 @@ This is the final external-proof rehearsal. It is deliberately separate from the
 ```powershell
 python scripts/generate_evidence_key.py   # creates a local git-ignored dev key once
 python ui/server.py
-ngrok http 5000
+zrok share public localhost:5000
 ```
 
-Copy the HTTPS forwarding URL from ngrok. In the Razorpay Dashboard **Test Mode**, create a webhook:
+Install and enable [zrok](https://docs.zrok.io/docs/guides/install/windows) first if it is not
+already available. Razorpay's current local-testing guidance recommends zrok; do not use a
+localhost URL, and do not assume that an `ngrok.io` URL will be accepted.
+
+Copy the public zrok URL. In the Razorpay Dashboard **Test Mode**, create a webhook:
 
 ```text
-https://YOUR-NGROK-DOMAIN/webhooks/razorpay
+YOUR-ZROK-PUBLIC-URL/webhooks/razorpay
 ```
 
-Subscribe to `payment.captured` and copy Razorpay’s webhook secret into `RAZORPAY_WEBHOOK_SECRET` in `.env`, then restart the server. Do not put the secret in a video, screenshot, issue, or commit.
+Subscribe to `payment.captured` (and optionally `payment.failed`) and copy the **webhook
+secret** you choose into `RAZORPAY_WEBHOOK_SECRET` in `.env`, then restart the server. This is
+not your Razorpay API key secret. Do not put either secret in a video, screenshot, issue, or
+commit.
 
 ## Rehearse
 
