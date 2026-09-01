@@ -1,421 +1,294 @@
-# SettleX Atlas — the receipt for the promise, not just the payment
+# SettleX Atlas
 
 > **The payment was valid. The promise changed. What should happen next?**
 
-**SettleX Atlas** is a merchant-side proof and release layer for agentic
-commerce, built for the **Razorpay AI Buildathon 2026 · Track 05: Open
-Innovation**.
+SettleX Atlas is a merchant-side **commercial-promise layer** for agentic
+commerce, built for the **Razorpay AI Buildathon 2026 · Open Track**.
 
-When an AI shopper pays, the payment may be perfectly authorised while the
-commercial deal later changes: a price rises, an item is substituted, delivery
-moves, a return policy changes, or a renewal is amended. The payment rail can
-truthfully say *money moved*. The buyer can still truthfully say *that is not
-what I agreed to*.
+An AI agent can make a completely valid payment and still create the wrong
+customer outcome later: the price changes, an item is substituted, delivery
+moves, a return policy changes, or a subscription renewal is amended. The
+payment rail can truthfully say *money moved*. The buyer can still truthfully
+say: **“That is not what I bought.”**
 
-Atlas preserves the exact, buyer-visible commercial promise, then checks it
-again immediately before a merchant fulfils, substitutes, or changes a
-renewal. It returns one of three human-readable decisions:
+Atlas turns the final buyer-visible offer into a signed **Offer Lock**, and
+checks that promise again immediately before fulfilment, substitution, or a
+subscription change.
 
 ```text
-ALLOW       → the promise still matches; the merchant worker may continue
+ALLOW       → the promise still matches; continue
 RECONFIRM   → a material term changed; ask the buyer again
 ESCALATE    → merchant or currency identity changed; do not inherit consent
 ```
 
-Razorpay continues to validate and move money. **Atlas protects the commercial
-promise around that payment.**
+**Razorpay validates and moves money. Atlas protects the commercial promise
+around that money.**
 
 ---
 
-## Why this should exist
+## The problem starts after payment
 
-The next commerce dispute may not begin with a failed payment. It may begin
-with an AI agent doing exactly what it was allowed to do, while the product,
-delivery, price, or renewal promise quietly changes afterwards.
+In ordinary checkout, the buyer sees a product, price, delivery terms, and a
+final confirmation. In agentic commerce, those facts can be assembled by an
+external shopping agent, a voice flow, an LLM, or a merchant app—and can change
+again inside the merchant catalogue or OMS after payment.
 
-This is especially relevant because agentic commerce is becoming real: Razorpay
-now supports agentic payment journeys across in-app, LLM, and voice surfaces,
-and UPI Reserve Pay enables consent-based, pre-authorised agent payments.
+That creates a gap between **payment authority** and **commercial authority**:
+
+```text
+Buyer sees and approves          Razorpay payment          Merchant acts later
+item · total · delivery     →    succeeds           →     ship · substitute · renew
+           │                                              │
+           └───── Offer Lock compares the promise ───────┘
+                                      │
+                           ALLOW | RECONFIRM | ESCALATE
+```
+
+Atlas prevents a previous payment confirmation from silently becoming approval
+for a different deal.
+
+## We researched Agent Studio first—then designed around the remaining gap
+
+This is intentionally **not** a generic AI safety bot or a clone of Razorpay
+Agent Studio. Public Razorpay material already describes meaningful agentic
+capabilities: merchant-defined boundaries, review-first controls, audit trails,
+dispute response, subscription recovery, settlement insights, and custom
+agents. [Razorpay Agent Studio](https://razorpay.com/agent-studio/) ·
+[Agent Studio principles and guardrails](https://razorpay.com/blog/razorpay-agent-studio-principles-guardrails-and-merchant-control/)
+
+Razorpay also supports agentic payments across in-app, LLM, and voice surfaces,
+and UPI Reserve Pay introduces consent-based, pre-authorised agent payments.
 [Razorpay Agentic Payments](https://razorpay.com/agentic-payments/)
 
-The gap Atlas targets is **post-consent commercial drift**:
+So we removed the overlapping ideas and kept the gap that remained:
 
-```text
-Buyer-visible offer             Payment                 Later merchant action
-price · item · delivery   →   authorised   →   ship · substitute · renew
-       │                                               │
-       └──── signed Offer Lock ── compare again ───────┘
-                                      │
-                          ALLOW | RECONFIRM | ESCALATE
-```
-
-It is deliberately not a payment gateway, a checkout replacement, a generic
-dispute bot, a settlement dashboard, or an Agent Studio clone.
-
-## The Razorpay fit — and the honest overlap boundary
-
-Razorpay Agent Studio already has serious capabilities: merchant-configured
-agent boundaries, approval controls, action trails, dispute-response agents,
-subscription recovery, settlement insights, and custom agents. Agentic Payments
-already makes AI-native checkout possible. [Agent Studio](https://razorpay.com/agent-studio/)
-[Agent Studio guardrails](https://razorpay.com/blog/razorpay-agent-studio-principles-guardrails-and-merchant-control/)
-
-Atlas does **not** claim to replace any of them. Its narrow, complementary
-proposition is a portable proof object that travels across systems which may
-not live in the same product boundary: an external buyer agent, merchant
-catalogue/OMS, Razorpay payment event, fulfilment worker, and support review.
-
-| Razorpay’s role | Atlas’s complementary role |
-|---|---|
-| Validate and execute the money action under configured limits and controls. | Capture the complete buyer-visible commercial offer, then decide if it is still safe to carry into a later fulfilment or renewal action. |
-| Emit payment lifecycle events. | Treat a raw-body HMAC-verified webhook as payment truth and attach it to the exact signed commercial promise. |
-| Provide agent controls, audit trails, and dispute workflows. | Give merchant operations and external buyer-agent flows a signed, field-level “what changed?” proof package. |
-| Support subscription operations. | Put a release receipt immediately before a merchant’s subscription-change worker: changed promise → `RECONFIRM`, not silent continuation. |
-| Process international payments and disputes. | Preserve displayed, payment-date, and dispute-date FX facts as separate evidence; explain the integer-paise delta without claiming to set a rate or decide a refund. |
-
-The public product material does not describe this exact cross-system,
-cryptographically verifiable commercial-promise lifecycle. That is the gap
-hypothesis Atlas demonstrates; it is **not** a claim about Razorpay’s private
-roadmap or internal capabilities.
-
----
-
-## Research-to-design traceability
-
-Atlas was designed by starting with the existing rails and asking a narrower
-question: **what becomes hard when an authorised agentic payment meets a
-mutable merchant workflow?** The answer was not “build another payment agent.”
-It was “make the buyer-visible promise independently reviewable at the next
-irreversible action.”
-
-This table records the public research basis as of **1 September 2026** and the
-specific product decision it informed.
-
-| Research finding | Why it matters | Atlas design response |
+| Public Razorpay capability researched | What it already handles | The remaining Atlas gap |
 |---|---|---|
-| The Buildathon explicitly asks for meaningful AI, a working product, evidence of value, execution, reliability, and depth; it calls verification capacity a bottleneck. [Buildathon brief](https://razorpay.com/buildathon/) | A glossy agent demo is not enough. | Atlas exposes what it knows, what it refuses to infer, and what it can prove in a signed evidence journey. |
-| Razorpay Agentic Payments brings payments into in-app, LLM, and voice experiences; UPI Reserve Pay supports consent-based agent payments. [Agentic Payments](https://razorpay.com/agentic-payments/) | AI buyers can create valid payments across surfaces outside a merchant’s OMS. | The Offer Lock is designed to travel from an external buyer agent to merchant operations without collecting payment credentials. |
-| Agent Studio already offers merchant boundaries, review-first operation, action audit trails, and specialist agents for disputes, subscriptions, and settlement operations. [Agent Studio](https://razorpay.com/agent-studio/) · [guardrails](https://razorpay.com/blog/razorpay-agent-studio-principles-guardrails-and-merchant-control/) | A generic “AI safety,” “reconciliation,” or “dispute” agent would overlap heavily. | Atlas does not compete with those agents; it supplies a signed commercial-state input for a later fulfilment, renewal, or support decision. |
-| Razorpay Order `notes` allow at most 15 key-value pairs, each at most 256 characters. [Orders API](https://razorpay.com/docs/api/orders/create/) | Payment metadata is not a safe place for raw buyer conversation or a full commercial contract. | Atlas puts compact identifiers and signature references in Order notes; the full snapshot stays in merchant-side evidence storage. |
-| Razorpay says webhook validation must use the exact raw request body, and documents `x-razorpay-event-id` for duplicate detection. [Webhook validation](https://razorpay.com/docs/webhooks/validate-test/) | A client-side “success” callback is neither authentic payment proof nor replay-safe evidence. | Only a raw-body HMAC-verified, deduplicated, Order-bound webhook can create `rzp.payment.captured` evidence. |
-| Razorpay Subscription updates are a `PATCH` that can alter plan, quantity, timing, and customer-notification handling. [Update Subscription API](https://razorpay.com/docs/api/payments/subscriptions/update/) | A notification setting is not, by itself, proof that the buyer accepted a materially new commercial promise. | Atlas returns a release receipt immediately before the merchant worker calls the PATCH; material drift yields `RECONFIRM` and `razorpay_patch_permitted: false`. |
-| Razorpay states that an international-dispute deduction can use the processing-bank conversion rate on the date the dispute is created, which may differ from the payment date. [Disputes FAQ](https://razorpay.com/docs/payments/disputes/faqs/) | One “FX rate” is not enough to explain a cross-border commerce outcome. | The FX Promise Envelope stores displayed, payment-date, and dispute-date facts separately and calculates only an explainable INR-paise delta. |
-| Razorpay’s Settlement Recon endpoint returns payment, refund, transfer, and adjustment lines with identifiers and debit/credit fields. [Settlement Recon API](https://razorpay.com/docs/api/settlements/fetch-recon/) | Payment evidence must not be confused with an unlinked finance row. | Atlas normalises recon-shaped rows and refuses unlinked records before treating them as evidence. |
-| AP2 defines checkout/payment mandates and receipts, including evidence at dispute time; it also requires deterministic verification regardless of whether a role is agentic. [AP2 specification](https://github.com/google-agentic-commerce/AP2/blob/main/docs/ap2/specification.md) | The direction of travel is verifiable intent, not unconstrained agent autonomy. | Atlas is AP2-inspired, not AP2-compliant: it signs merchant-side buyer-visible terms and uses deterministic drift checks; it does not emit AP2 mandates or JWT receipts. |
-| τ-bench introduced `pass^k` because a single successful agent run is weak evidence of reliability. [τ-bench](https://arxiv.org/abs/2406.12045) | A one-click happy path is not a release criterion for AI near commerce. | Kasauti records a strict internal synthetic `pass^5` regression run with provenance. It is clearly labelled as non-production evidence. |
+| Agent Studio guardrails and audit trails | Merchant-defined boundaries, approvals, and recorded agent actions. | A portable, buyer-visible commercial promise that stays useful when the buyer agent, merchant OMS, fulfilment system, and payment event live across different systems. |
+| Dispute Responder | Gathering and responding to an existing payment dispute. | **Pre-dispute prevention:** detect that the paid-for promise changed before the merchant ships, substitutes, or renews. |
+| Subscription Recovery | Recovering failed recurring payments and avoiding churn. | A buyer-consent gate before a merchant changes plan, quantity, timing, or renewal terms through a subscription update. |
+| Settlement Insights and Recon | Payment/settlement reporting and reconciliation. | Link a finance row to the signed commercial promise; do not treat an unlinked row as customer-facing evidence. |
+| Agentic checkout and UPI Reserve Pay | Safe payment authorisation in agent-led commerce. | Verify whether the **exact buyer-visible deal** remains true at the next irreversible merchant action. |
 
-### Why the AI is meaningful—and deliberately bounded
+**The public-surface gap hypothesis:** we did not find a documented Razorpay
+surface for a cryptographically verifiable snapshot of the complete
+buyer-visible offer—item, price, delivery, policy, substitution, renewal—that
+travels from an external buyer agent through a Razorpay event to fulfilment or
+renewal. Atlas is built for that seam. This is a public-product research
+conclusion, not a claim about Razorpay’s internal roadmap.
 
-Atlas does not use an LLM to make a money or consent decision. It uses a
-configured Gemini or Ollama provider for the task language models are useful
-for: converting an ambiguous human request into a structured draft and exposing
-what still needs clarification. Server-side code then verifies catalogue SKUs,
-hydrates merchant-controlled price and policy data, produces the final
-buyer-visible playback, and retains model provenance.
+---
 
-This creates a deliberate split:
+## The product: one promise, four proof points
+
+### 1. Offer Lock — a receipt for the agreement
+
+Before payment, Atlas creates a canonical snapshot of the terms the buyer saw:
+items, total, delivery date, return-policy version, substitution rule, renewal
+summary, merchant, and currency. The snapshot is Ed25519-signed.
+
+This is not a screenshot and not raw chat history. It is a structured,
+versioned commercial commitment that can be compared later.
+
+### 2. Release gate — do not silently carry consent forward
+
+Immediately before shipment, substitution, or renewal, the merchant sends the
+current or proposed terms to Atlas. Atlas performs a deterministic field-level
+comparison with the signed Offer Lock.
+
+If the price rises, an item changes, delivery moves later, policy changes, or a
+renewal changes, Atlas returns `RECONFIRM` with the exact diff. A merchant
+worker proceeds only when the result is `ALLOW`.
+
+### 3. Evidence journey — payment proof belongs beside promise proof
+
+Atlas creates one readable, sealed evidence journey:
 
 ```text
-LLM: understand request, extract structured intent, surface ambiguity
-Code: resolve trusted terms, sign evidence, verify webhook, compare drift, gate action
-Human: see the final offer and explicitly confirm a changed promise
+buyer-visible offer → buyer approval → signed Offer Lock → verified payment
+→ observed commercial change → ALLOW / RECONFIRM / ESCALATE
 ```
 
-The result is not “less AI.” It is **controlled agency**: AI handles language
-and uncertainty; deterministic systems handle authority, money-adjacent state,
-and evidence.
+A browser checkout callback is not payment proof. Only a raw-body
+HMAC-verified Razorpay webhook, bound to the exact Atlas-created Order and
+deduplicated by event ID, can write `rzp.payment.captured` evidence.
 
-## Impact model: what changes for each human in the workflow
+### 4. FX Promise Envelope — the second promise nobody can see
 
-Atlas does not claim savings, conversion lift, dispute-win rate, or merchant
-traction before a pilot. Its impact case is causal and testable:
+The buyer may see one currency conversion, payment can occur on another date,
+and a later international dispute deduction can use yet another conversion
+date. Razorpay’s disputes FAQ states that an international-dispute deduction is
+based on the processing-bank conversion rate on the day the dispute is created,
+which can differ from the payment date. [Razorpay disputes FAQ](https://razorpay.com/docs/payments/disputes/faqs/)
 
-| Person | Before Atlas | Atlas intervention | Measurable pilot signal |
-|---|---|---|---|
-| Buyer | A valid payment can be followed by a changed item, price, delivery promise, or renewal with no obvious consent boundary. | One buyer-visible playback is locked; material change requires a fresh decision. | Number and category of material changes caught before fulfilment/renewal. |
-| Merchant operations | Teams reconcile chat, catalogue, OMS, payment status, and policy history when something goes wrong. | One evidence journey links signed terms, verified payment, change, and decision. | Reviewer agreement and time-to-resolution compared with the merchant’s current process. |
-| Support / dispute reviewer | They receive disconnected screenshots and conflicting recollections. | They receive a privacy-minimised, tamper-evident sequence with the precise field-level diff. | Evidence completeness and escalation rate. |
-| Finance / international operations | A payment-day and dispute-day amount can look inconsistent without a clear explanation. | The three rate dates are labelled separately and the paise delta is calculated reproducibly. | Percentage of FX exceptions with source-linked, reviewer-accepted explanation. |
-
-### Pilot measurement plan—no invented ROI
-
-The first deployment should shadow one high-drift workflow for 30 days: a
-substitution, delivery change, or subscription amendment. Atlas will observe
-before it gates. The merchant and support reviewers should then assess:
-
-1. **Eligible-action coverage:** What proportion of targeted fulfilment or
-   renewal actions had an Offer Lock preflight?
-2. **Drift detection:** How often did current terms differ materially from the
-   buyer-confirmed terms, and which fields changed?
-3. **Reviewer agreement:** Did a human reviewer agree with `ALLOW`,
-   `RECONFIRM`, or `ESCALATE`?
-4. **Evidence completeness:** Did every reviewed case contain the lock,
-   signature status, linked Order/payment reference, and decision trace?
-5. **Resolution time:** How long did the team take to explain or resolve the
-   case relative to its existing workflow?
-6. **Exception list:** Which cases remain unsafe to automate and why?
-
-This is the proof path from a compelling Buildathon prototype to a credible
-merchant product.
-
----
-
-## What is working now
-
-| Capability | What the repository demonstrates |
-|---|---|
-| Buyer-visible Offer Lock | Canonical commercial terms—items, total, delivery, return, substitution, renewal, merchant, currency—are versioned and Ed25519-signed. |
-| Bounded AI composition | Gemini or Ollama may translate a natural-language request into a structured draft against known merchant SKUs. Server code hydrates trusted price/policy data; AI cannot set an amount, grant consent, fulfil, refund, or decide a drift verdict. |
-| Material-drift policy | Price increase, added/removed item, later delivery, return/substitution-policy change, and renewal change return `RECONFIRM`; merchant/currency identity changes return `ESCALATE`. |
-| Razorpay Test Mode flow | Atlas creates a guarded `rzp_test_` Order with compact proof references only. A real Razorpay Test Mode checkout and public-HTTPS webhook rehearsal have been completed. |
-| Payment evidence | The durable development evidence store contains **three** HMAC-verified `rzp.payment.captured` events from the Test Mode rehearsal. Browser return is explicitly untrusted and cannot create payment proof. |
-| Evidence integrity | Raw-body HMAC validation, duplicate rejection, exact Order binding, hash-chained events, Ed25519 sealing, and a verifier-side key trust registry. |
-| Subscription release preflight | A typed planned change returns a signed receipt. When material terms drift, `razorpay_patch_permitted: false`; a merchant worker must obtain fresh confirmation before it calls Razorpay. |
-| FX Promise Envelope | A three-date, source-labelled display/payment/dispute-rate assessment using integer paise—not floating-point arithmetic—and an explainable INR delta. |
-| Release discipline | **104 automated tests** plus a 14-scenario, reproducible, synthetic internal `pass^5` regression run. |
-
-### Evidence status, stated precisely
-
-The Test Mode capture is a real Razorpay event received through the configured
-webhook. It proves that Atlas can create the guarded Test Mode order, receive a
-public webhook, verify its HMAC over the raw body, reject duplicate delivery,
-and bind the event to the correct Offer Lock.
-
-It does **not** prove real-money readiness, delivery of goods, product quality,
-buyer identity, legal liability, or production scale. Test Mode uses no real
-money. The evidence database and keys are local development artifacts and are
-not committed to this repository.
-
----
-
-## How it works
+Atlas makes that hidden lifecycle explicit:
 
 ```text
-1. BUYER / EXTERNAL AGENT
-   “Two margheritas, Saturday, no substitutions.”
-                         │
-                         ▼
-2. ATLAS — BOUNDED AI + TRUSTED MERCHANT DATA
-   AI creates a structured draft only.
-   Server resolves approved SKU, ₹ total, delivery and policy versions.
-                         │
-                         ▼
-3. BUYER CONFIRMATION
-   Buyer reviews a clear playback and confirms it.
-   Atlas canonicalises the terms and creates an Ed25519-signed Offer Lock.
-                         │
-                         ▼
-4. RAZORPAY ORDER + PAYMENT TRUTH
-   Atlas adds compact proof references to a Razorpay Test Mode Order.
-   Only a raw-body HMAC-verified Razorpay webhook becomes payment evidence.
-                         │
-                         ▼
-5. BEFORE A CONSEQUENTIAL MERCHANT ACTION
-   OMS / fulfilment / subscription worker sends current or proposed terms.
-   Atlas compares them with the lock and returns ALLOW, RECONFIRM or ESCALATE.
-                         │
-                         ▼
-6. HUMAN-REVIEWABLE EVIDENCE
-   Support or operations receives one sealed journey:
-   buyer-visible promise → payment proof → change → decision.
+buyer-displayed rate  →  payment-date rate  →  dispute-date rate
+       what was shown       what was paid         what was deducted later
 ```
 
-### Real-system inputs and outputs
-
-| Existing system | Atlas receives | Atlas gives back |
-|---|---|---|
-| Buyer agent or checkout | structured request and opaque approval reference | buyer-visible final-offer playback for explicit confirmation |
-| Merchant catalogue / OMS | approved SKUs, price, policy, delivery and renewal terms | signed Offer Lock and later field-level drift decision |
-| Razorpay Orders API | amount, currency and compact proof references | standard Razorpay Order; Atlas never touches card, UPI, or payment credentials |
-| Razorpay webhook | raw signed lifecycle payload | privacy-minimised payment evidence linked to exactly one Offer Lock |
-| Fulfilment / renewal worker | current terms immediately before action | `ALLOW`, `RECONFIRM`, or `ESCALATE` release receipt |
-| Finance / disputes operations | labelled display, payment, reference and dispute-date rates | integer-paise delta plus source-linked evidence attachment |
-| Support / claims team | claim plus Offer Lock journey | sealed evidence package and recommendation—not an automatic dispute outcome |
+The **FX Promise Envelope** stores those three facts with their sources,
+calculates the difference in integer paise, and attaches it to the same evidence
+journey. It does not invent a bank rate, execute FX, set a refund, or decide a
+dispute. Its innovation is making a confusing, multi-date commercial exposure
+reviewable before it becomes an opaque support argument.
 
 ---
 
-## Five-minute judge walkthrough
+## How Atlas integrates with Razorpay today
 
-1. Open [`/offer-lock`](http://127.0.0.1:5000/offer-lock). Generate a
-   constrained offer draft and show the buyer-visible playback.
-2. Sign the offer. Point out that the snapshot, not raw chat, becomes the
-   Offer Lock; the UI displays its signature and safe proof references.
-3. Trigger **Silent drift**. The price, item/delivery/policy terms change;
-   Atlas produces a field-level `RECONFIRM` verdict.
-4. Open the sealed evidence journey. Show `rzp.payment.captured`, the verified
-   evidence seal, and the human-readable, per-journey timeline.
-5. Open [`/subscription-preflight`](http://127.0.0.1:5000/subscription-preflight).
-   Show that a changed renewal produces `PATCH withheld — new confirmation
-   required`.
-6. Open [`/fx-promise`](http://127.0.0.1:5000/fx-promise). Show displayed,
-   payment, and dispute dates; explain that the ₹15 delta is evidence for an
-   operations review—not an invented refund.
-7. Finish at [`/release`](http://127.0.0.1:5000/release). Show the strict
-   internal `pass^5` label and clearly say it is synthetic regression evidence.
+Atlas is designed as a service **beside** a merchant’s existing checkout and
+OMS. It does not replace Razorpay Checkout, handle a card/UPI credential, or
+become a payment processor.
 
-For the strongest video, tell one story only: **buyer sees ₹680 → payment is
-real → price/delivery changes → Atlas holds fulfilment → support can prove why.**
-The other pages are proof of depth, not separate product pitches.
+```text
+Buyer agent / merchant checkout
+          │  buyer request + explicit approval reference
+          ▼
+SettleX Atlas
+  • bounded AI drafts a structured offer from approved catalogue SKUs
+  • server supplies merchant-controlled price, delivery and policy terms
+  • buyer-visible terms are signed as an Offer Lock
+          │  compact lock/signature references only
+          ▼
+Razorpay Orders API + Razorpay Checkout
+  • normal Razorpay Order is created in Test Mode
+  • payment is completed through Razorpay Checkout
+          │  raw signed payment event
+          ▼
+POST /webhooks/razorpay
+  • Atlas validates the raw-body HMAC
+  • rejects duplicate / wrong-Order events
+  • appends verified payment evidence to the locked journey
+          │
+          ▼
+Merchant OMS / subscription worker
+  • sends current or proposed terms just before action
+  • receives ALLOW, RECONFIRM, or ESCALATE
+  • performs its existing fulfilment or Razorpay subscription PATCH only on ALLOW
+```
 
----
+### What is already implemented
 
-## Trust boundaries and security design
-
-The product is intentionally strict about what counts as evidence:
-
-- A checkout success screen or browser callback is **not** payment proof.
-- A webhook is accepted only after HMAC verification over the original raw
-  request body; it is deduplicated and must name the exact Order bound to the
-  Offer Lock.
-- The full commercial snapshot is canonicalised and Ed25519-signed. Razorpay
-  Order notes hold compact proof references only—never buyer chat, credentials,
-  card data, UPI VPAs, phone numbers, or email addresses.
-- Drift decisions are deterministic, field-level comparisons—not an LLM score.
-- AI can compose a draft and surface ambiguity; it cannot obtain consent,
-  choose a final amount, create an unguarded order, issue a refund, fulfil, or
-  determine the final verdict.
-- Portable signatures are verified against a separate trust registry with
-  active, expired, and revoked key states.
-- The FX module preserves labelled facts. It does not claim to be a bank quote,
-  execute conversion, hedge FX, or decide a dispute.
-
-See [SECURITY.md](SECURITY.md) and [GOVERNANCE.md](GOVERNANCE.md) for the
-threat model, data-minimisation rules, and control record.
-
-## What this deliberately does not claim
-
-| Not claimed | Why |
+| Integration point | Atlas behaviour |
 |---|---|
-| Production readiness | Production needs tenancy, authentication/authorisation, encrypted storage, KMS/HSM signing custody, key rotation, rate limits, monitoring, retention policy, incident response, and a security review. |
-| An automatic refund or dispute verdict | Atlas can explain commercial and FX evidence; the merchant and payment/dispute process make the decision. |
-| Payment fraud prevention or buyer identity verification | These remain payment-rail and merchant identity concerns. |
-| An AP2 or NPCI UAP implementation | Atlas is inspired by signed-mandate/evidence ideas, but it does not emit their protocol artifacts or claim compliance. |
-| Real-world accuracy or traction | The current `pass^5` run is synthetic regression testing. No customer metric or merchant pilot is claimed. |
+| `POST /api/offer-drafts` | A configured Gemini or Ollama model converts natural language into a constrained, catalogue-backed draft and raises clarifying questions. |
+| `POST /api/offer-locks` | Buyer-approved terms are signed; Atlas returns safe proof references for Razorpay Order metadata. |
+| `POST /api/offer-locks/:lock_id/test-mode-order` | A guarded Razorpay **Test Mode** Order is created only after an Offer Lock exists. The adapter refuses live keys. Razorpay Order `notes` hold compact references, never raw buyer text or credentials. [Orders API limits](https://razorpay.com/docs/api/orders/create/) |
+| `POST /webhooks/razorpay` | Uses the exact raw request body for HMAC validation, as Razorpay requires; deduplicates webhook delivery and verifies that the event names the Order bound to the lock. [Webhook validation](https://razorpay.com/docs/webhooks/validate-test/) |
+| `POST /api/offer-locks/:lock_id/check` | A fulfilment/substitution preflight returns the field-level decision and reseals the evidence journey. |
+| `POST /api/subscriptions/preflight` | A typed planned update is checked before a merchant-owned worker calls Razorpay’s Subscription `PATCH`; material drift returns `razorpay_patch_permitted: false`. [Subscription Update API](https://razorpay.com/docs/payments/subscriptions/update/) |
+| Settlement Recon adapter | Normalises documented recon-shaped payment/refund/transfer/adjustment records, while rejecting an unlinked line as evidence. [Settlement Recon API](https://razorpay.com/docs/api/settlements/fetch-recon/) |
+
+### What the Test Mode rehearsal proves
+
+The local durable development evidence store recorded **three**
+HMAC-verified `rzp.payment.captured` events after real Razorpay Test Mode
+checkout and public-HTTPS webhook delivery. This demonstrates the full
+Order → Checkout → webhook → sealed evidence path.
+
+It does not claim live-money readiness, real settlement, physical delivery,
+product quality, production scale, or legal liability. The local evidence
+database and keys are deliberately git-ignored; no credential or raw buyer data
+is committed.
 
 ---
+
+## AI with a job, not AI with authority
+
+Atlas uses AI where it has leverage: understanding a buyer’s natural-language
+request, selecting only known catalogue SKUs/quantities, and surfacing
+ambiguity. It does **not** ask a model to decide an amount, grant consent,
+create an unguarded order, fulfil an order, issue a refund, or decide whether a
+promise drifted.
+
+```text
+LLM     → understand request, produce structured draft, reveal uncertainty
+Code    → resolve trusted terms, sign evidence, verify payment, compare drift
+Human   → see the final offer and approve a materially changed promise
+```
+
+That division is the point: **AI makes the interface natural; deterministic
+controls make the money-adjacent workflow trustworthy.**
+
+## Proof and product maturity
+
+- **104 automated tests** cover offer locking, signatures, trust registry,
+  material-drift policy, raw-body webhooks, duplicate/order binding, durable
+  evidence, Test Mode boundaries, FX arithmetic, subscription preflight,
+  routes, settlements, and the release harness.
+- **14 reproducible internal scenarios** run under strict synthetic
+  `pass^5 = 14/14`: a scenario counts only when all five repeats respect its
+  policy. This is regression evidence—not a claim of production reliability.
+  The evaluation approach is inspired by [τ-bench](https://arxiv.org/abs/2406.12045),
+  which introduced repeated `pass^k` reliability measurement for tool agents.
+- **Independent verification posture:** canonical terms are Ed25519-signed;
+  the verifier uses a separate trust registry with active, expired, and revoked
+  key states.
+
+## Impact we intend to prove
+
+Atlas does not invent savings, conversion lift, dispute-win rate, or merchant
+traction. Its impact hypothesis is concrete:
+
+| Who benefits | What changes |
+|---|---|
+| Buyers | A material change becomes a visible decision instead of a surprise after payment. |
+| Merchant operations | One evidence trail replaces the hunt across agent transcript, catalogue, OMS, payment status, and policy history. |
+| Support and disputes | The reviewer sees the exact promise, verified payment, field-level change, and system decision in one place. |
+| International finance operations | Payment-day and dispute-day FX differences become source-labelled evidence rather than unexplained variance. |
+
+The first merchant pilot should shadow one high-drift workflow for 30 days:
+substitutions, delivery changes, or subscription amendments. It should measure
+preflight coverage, drift caught, reviewer agreement, evidence completeness,
+resolution time, and the exceptions that must remain manual.
+
+---
+
+## Research foundation
+
+This project was scoped against the following primary sources—not assumptions:
+
+- [Razorpay AI Buildathon 2026](https://razorpay.com/buildathon/) — the Open
+  Track asks for a real problem, meaningful AI, a working product, evidence of
+  value, reliability, and depth.
+- [Razorpay Agent Studio](https://razorpay.com/agent-studio/) and
+  [its guardrail principles](https://razorpay.com/blog/razorpay-agent-studio-principles-guardrails-and-merchant-control/)
+  — defines the overlap we intentionally avoided.
+- [Razorpay Agentic Payments](https://razorpay.com/agentic-payments/) — why
+  agent-led, cross-surface payment journeys make this problem immediate.
+- [Orders API](https://razorpay.com/docs/api/orders/create/),
+  [webhook validation](https://razorpay.com/docs/webhooks/validate-test/),
+  [Subscription Update API](https://razorpay.com/docs/payments/subscriptions/update/),
+  [Settlement Recon API](https://razorpay.com/docs/api/settlements/fetch-recon/),
+  and [international disputes FAQ](https://razorpay.com/docs/payments/disputes/faqs/)
+  — the real integration constraints behind the design.
+- [Google AP2 specification](https://github.com/google-agentic-commerce/AP2/blob/main/docs/ap2/specification.md)
+  — the signed-mandate and deterministic-verification ideas that influenced
+  Atlas. Atlas is **AP2-inspired**, not AP2-compliant.
+- [τ-bench](https://arxiv.org/abs/2406.12045) — why the release harness uses
+  repeated `pass^k` rather than a single happy-path run.
 
 ## Run locally
 
-### Windows PowerShell
-
 ```powershell
-py -m venv .venv
-.\.venv\Scripts\Activate.ps1
-pip install -r requirements.txt
-Copy-Item .env.example .env
-py -m pytest -q
-py ui\server.py
+cd C:\path\to\rp_build
+.\.venv\Scripts\python.exe -m pytest -q
+.\.venv\Scripts\python.exe ui\server.py
 ```
 
 Open [http://127.0.0.1:5000/offer-lock](http://127.0.0.1:5000/offer-lock).
+For a fresh Test Mode webhook rehearsal, configure `rzp_test_` credentials and
+a webhook secret in `.env`, expose `/webhooks/razorpay` through public HTTPS,
+and subscribe to `payment.captured` in Razorpay Test Mode. Never commit `.env`,
+evidence databases, or signing keys.
 
-### macOS / Linux
+## Scope boundary
 
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-cp .env.example .env
-python3 -m pytest -q
-python3 ui/server.py
-```
-
-Leave Razorpay keys blank for the offline walkthrough. Never commit `.env`,
-the durable development evidence database, or signing keys.
-
-The judge walkthrough bundles its core browser assets locally. The frontend
-uses Tailwind’s browser build only as a demo convenience; a production frontend
-would compile and pin its assets. See
-[`ui/vendor/THIRD_PARTY_NOTICES.md`](ui/vendor/THIRD_PARTY_NOTICES.md).
-
-## Routes
-
-| Route | Purpose |
-|---|---|
-| `/offer-lock` | Primary buyer-visible offer, signature, Test Mode, and drift-check flow |
-| `/evidence/<session-id>` | Sealed evidence journey |
-| `/claims/<session-id>` | Buyer-claim review from the evidence chain |
-| `/subscription-preflight` | Material-change gate before a merchant subscription worker acts |
-| `/fx-promise` | Three-date international FX Promise Envelope |
-| `/release` | Synthetic release-test dashboard and boundary labels |
-| `/settlements` | Settlement-reconciliation sandbox |
-| `/intent-check`, `/speech-check`, `/checkout-safety` | Supporting assurance demonstrations |
-
----
-
-## Repository map
-
-```text
-ui/                         Flask dashboard, deep-link routing and Test Mode UI
-sakshi/offer_lock.py        Canonical Offer Lock, signatures, drift policy
-sakshi/offer_composer.py    Bounded AI offer composition and clarification gate
-sakshi/webhooks.py          Raw-body Razorpay HMAC verification and idempotency
-sakshi/offer_store.py       Durable privacy-safe local Offer Lock storage
-sakshi/subscriptions.py     Release receipt before a subscription PATCH
-sakshi/fx/promise.py        Labelled FX evidence and paise arithmetic
-sakshi/settlements/         Recon normalisation and link validation
-kasauti/                    Synthetic adversarial release harness
-tests/                      Unit, integration, routing, and Test Mode tests
-```
-
-## Submission material
-
-- [Five-minute pitch and demo script](PITCH_AND_DEMO_SCRIPT.md)
-- [Demo guide](DEMO.md)
-- [Validation record](VALIDATION.md)
-- [Integration contract](INTEGRATION.md)
-- [Gap and overlap analysis](GAP_ANALYSIS.md)
-- [Security model](SECURITY.md)
-- [Governance record](GOVERNANCE.md)
-- [Pilot plan](PILOT_PLAN.md)
-- [Webhook rehearsal runbook](WEBHOOK_REHEARSAL.md)
-
-## Primary research links
-
-These are the primary materials used to define the scope. They are included so
-a reviewer can distinguish a documented platform capability, an external
-standard, and an Atlas design inference.
-
-### Razorpay and Buildathon
-
-- [Razorpay AI Buildathon 2026](https://razorpay.com/buildathon/) — Track 05
-  bar, submission format, and the emphasis on evidence and depth.
-- [Razorpay Agentic Payments](https://razorpay.com/agentic-payments/) — current
-  agentic-payment surfaces and consent-based agent payment methods.
-- [Razorpay Agent Studio](https://razorpay.com/agent-studio/) and
-  [Agent Studio principles and guardrails](https://razorpay.com/blog/razorpay-agent-studio-principles-guardrails-and-merchant-control/)
-  — documented overlap boundary for agent controls, audit, dispute, and
-  operations workflows.
-- [Create an Order](https://razorpay.com/docs/api/orders/create/) — Order
-  metadata capacity that shapes Atlas’s compact-reference design.
-- [Validate and test webhooks](https://razorpay.com/docs/webhooks/validate-test/)
-  — raw-body signature validation, test-mode webhook delivery, and idempotency.
-- [Update a Subscription](https://razorpay.com/docs/api/payments/subscriptions/update/)
-  — the mutation Atlas preflights; Atlas does not execute this call.
-- [Settlement Recon details](https://razorpay.com/docs/api/settlements/fetch-recon/)
-  — settlement line types and fields used by the adapter.
-- [International payment disputes FAQ](https://razorpay.com/docs/payments/disputes/faqs/)
-  — documented dispute-date FX-rate behavior that motivates the FX envelope.
-
-### Standards and evaluation research
-
-- [Google AP2 specification](https://github.com/google-agentic-commerce/AP2/blob/main/docs/ap2/specification.md)
-  — signed checkout/payment mandates, receipts, and deterministic verification;
-  Atlas is inspired by the evidence model and makes no compliance claim.
-- [τ-bench paper](https://arxiv.org/abs/2406.12045) — the motivation for a
-  repeated `pass^k` reliability check rather than a single successful run.
-
-## The next production-shaped milestones
-
-1. Put an authenticated merchant OMS or fulfilment worker behind the release
-   receipt and demonstrate that `RECONFIRM` actually blocks action.
-2. Move signing keys to managed custody, encrypt the evidence store, and add
-   tenant isolation, retention, and operator access controls.
-3. Validate one narrow workflow—substitution, delivery change, or renewal—with
-   merchant/support reviewers and human-labelled cases.
-4. Replace demo FX inputs with source-bound finance/dispute records after an
-   international-operations validation.
-5. Run held-out, human-reviewed agent evaluations before expanding autonomy.
-
-Until then, Atlas is exactly what it claims to be: a working, security-minded
-Buildathon prototype for making agentic commerce more honest and explainable.
+Atlas is a working, security-minded Buildathon prototype. Production needs
+merchant authentication and tenancy, encrypted durable storage, managed key
+custody and rotation, retention controls, monitoring, rate limits, a real OMS
+enforcement worker, human-reviewed held-out evaluations, and merchant pilot
+validation. It does not claim to prevent payment fraud, execute FX, decide a
+refund, or replace Razorpay’s payment or dispute processes.
