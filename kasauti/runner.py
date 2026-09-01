@@ -374,6 +374,73 @@ class Summary:
         return "\n".join(rows)
 
 
+@dataclass(frozen=True)
+class PassKSummary:
+    """A deliberately strict all-repeats reliability metric.
+
+    A scenario passes only when every repeat matches its policy expectation,
+    catches the expected impact, and—where present—also passes the
+    communication and dispute labels.  This follows the useful *shape* of a
+    pass^k measure, but is not a claim of τ-bench compatibility.
+    """
+
+    agent: str
+    k: int
+    scenarios: int
+    passed_scenarios: int
+    failed_scenario_ids: tuple[str, ...]
+
+    @property
+    def rate(self) -> float:
+        return self.passed_scenarios / self.scenarios if self.scenarios else 0.0
+
+    def as_dict(self) -> dict:
+        return {
+            "metric": "kasauti.strict_pass^k",
+            "agent": self.agent,
+            "k": self.k,
+            "scenarios": self.scenarios,
+            "passed_scenarios": self.passed_scenarios,
+            "rate": self.rate,
+            "failed_scenario_ids": list(self.failed_scenario_ids),
+            "definition": "Every repeat for a scenario must pass policy, impact, speech and dispute labels where applicable.",
+            "boundary": "Internal synthetic evaluation; not a τ-bench result or a production reliability claim.",
+        }
+
+    def line(self) -> str:
+        return (f"{self.agent} strict pass^{self.k}: {self.passed_scenarios}/{self.scenarios} "
+                f"({self.rate:.0%}) — all repeats must pass")
+
+
+def strict_pass_k(results: list[RunResult]) -> PassKSummary:
+    """Score deterministic policy success across every repeat of each scenario."""
+    if not results:
+        raise ValueError("no results")
+    groups: dict[str, list[RunResult]] = {}
+    for result in results:
+        groups.setdefault(result.scenario_id, []).append(result)
+    k = max(len(group) for group in groups.values())
+    if any(len(group) != k for group in groups.values()):
+        raise ValueError("strict pass^k requires the same number of repeats for every scenario")
+
+    def passed(result: RunResult) -> bool:
+        return (
+            result.status_match
+            and result.impact_ok
+            and (result.pattern_match is not False)
+            and (result.dispute_match is not False)
+        )
+
+    failed = tuple(sorted(scenario_id for scenario_id, group in groups.items() if not all(passed(item) for item in group)))
+    return PassKSummary(
+        agent=results[0].agent,
+        k=k,
+        scenarios=len(groups),
+        passed_scenarios=len(groups) - len(failed),
+        failed_scenario_ids=failed,
+    )
+
+
 def summarize(results: list[RunResult]) -> Summary:
     if not results:
         raise ValueError("no results")

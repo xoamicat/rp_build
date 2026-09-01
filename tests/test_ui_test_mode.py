@@ -92,6 +92,16 @@ def test_test_mode_order_requires_signed_lock_and_verified_webhook(monkeypatch):
     assert ingested.status_code == 200
     assert ingested.get_json()["ledger_event_type"] == "rzp.payment.captured"
 
+    wrong_order = json.loads(json.dumps(webhook))
+    wrong_order["payload"]["payment"]["entity"]["order_id"] = "order_not_bound_to_lock"
+    wrong_raw = json.dumps(wrong_order, separators=(",", ":")).encode("utf-8")
+    wrong_signature = hmac.new(settings.razorpay_webhook_secret.encode("utf-8"), wrong_raw, hashlib.sha256).hexdigest()
+    rejected = client.post("/webhooks/razorpay", data=wrong_raw, headers={
+        "Content-Type": "application/json", "x-razorpay-signature": wrong_signature,
+        "x-razorpay-event-id": "evt_wrong_order",
+    })
+    assert rejected.status_code == 409
+
     status = client.get(f"/api/test-mode/orders/{order_id}/status")
     assert status.status_code == 200
     assert status.get_json()["payment_captured_by_verified_webhook"] is True
@@ -101,8 +111,55 @@ def test_dashboard_routes_are_directly_loadable():
     client = server.app.test_client()
     for path in (
         "/", "/offer-lock", "/evidence", "/evidence/offer-demo", "/claims", "/claims/offer-demo",
-        "/release", "/checkout-safety", "/settlements", "/intent-check", "/speech-check",
+        "/release", "/checkout-safety", "/fx", "/fx-promise", "/subscription-preflight", "/settlements", "/intent-check", "/speech-check",
     ):
         response = client.get(path)
         assert response.status_code == 200, path
         assert b"SettleX" in response.data
+
+
+def test_fx_promise_endpoint_prices_three_dates_without_claiming_a_gateway_rate():
+    client = server.app.test_client()
+    result = client.post("/api/fx-promise/assess", json={
+        "envelope": {
+            "buyer_currency": "USD", "foreign_amount_minor": 1_000, "minor_per_unit": 100,
+            "displayed_rate": 96.00, "reference_rate": 95.68, "reference_provider": "FBIL",
+            "reference_source_ref": "fbil-usdinr-2026-08-20",
+            "reference_date": "2026-08-20", "valid_through": "2026-08-21", "allowed_spread_bps": 150,
+        },
+        "payment_rate": 95.70, "payment_date": "2026-08-21", "payment_source_ref": "pay_pay_123",
+        "dispute_rate": 97.20, "dispute_date": "2026-09-02", "dispute_source_ref": "dispute_disp_123",
+    })
+
+    assert result.status_code == 200
+    payload = result.get_json()
+    assert payload["payment_value_paise"] == 95_700
+    assert payload["dispute_fx_delta_paise"] == 1_500
+    assert payload["evidence_attached"] is False
+
+
+def test_subscription_preflight_refuses_to_release_a_changed_renewal_without_reconfirmation(monkeypatch):
+    monkeypatch.setattr(server, "_offer_locks", {})
+    monkeypatch.setattr(server, "_offer_evidence_sessions", {})
+    monkeypatch.setattr(server, "_offer_lock_service", None)
+    monkeypatch.setattr(server, "_offer_store", None)
+    client = server.app.test_client()
+    signed = client.post("/api/offer-locks", json=_offer_payload())
+    lock_id = signed.get_json()["lock"]["lock_id"]
+    proposed = _offer_payload()["terms"]
+    proposed["renewal_summary"] = "Renews monthly at ₹680 including delivery."
+
+    result = client.post("/api/subscriptions/preflight", json={
+        "lock_id": lock_id,
+        "patch": {
+            "subscription_id": "sub_test_001", "plan_id": "plan_test_v2", "quantity": 2,
+            "remaining_count": 12, "schedule_change_at": "cycle_end", "customer_notify": False,
+        },
+        "proposed_terms": proposed,
+    })
+
+    assert result.status_code == 200
+    payload = result.get_json()
+    assert payload["decision"]["status"] == "RECONFIRM"
+    assert payload["razorpay_patch_permitted"] is False
+    assert "Do not call Razorpay PATCH" in payload["next_step"]

@@ -11,13 +11,17 @@ import hashlib
 import hmac
 import json
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Callable, Optional
 
 from .ledger import Ledger
 
 
 class WebhookSignatureError(ValueError):
     pass
+
+
+class WebhookBindingError(ValueError):
+    """A real webhook refers to a different order than the signed Atlas handoff."""
 
 
 def verify_webhook_signature(raw_body: bytes, signature: str | None, secret: str) -> bool:
@@ -67,9 +71,15 @@ class WebhookReceipt:
 class RazorpayWebhookIngestor:
     """Idempotently maps verified payment lifecycle events into the evidence ledger."""
 
-    def __init__(self, ledger: Ledger, secret: str):
+    def __init__(
+        self,
+        ledger: Ledger,
+        secret: str,
+        expected_order_for_txn: Optional[Callable[[str], Optional[str]]] = None,
+    ):
         self.ledger = ledger
         self.secret = secret
+        self.expected_order_for_txn = expected_order_for_txn
 
     def ingest(self, raw_body: bytes, signature: str | None, event_id: str | None = None) -> WebhookReceipt:
         if not verify_webhook_signature(raw_body, signature, self.secret):
@@ -84,6 +94,12 @@ class RazorpayWebhookIngestor:
         fingerprint = hashlib.sha256(raw_body).hexdigest()
         event_name = str(data.get("event", "unknown"))
         entity, txn = _entity_and_txn(data)
+        actual_order_id = str(entity.get("order_id") or "")
+        expected_order_id = self.expected_order_for_txn(txn) if self.expected_order_for_txn else None
+        if expected_order_id is not None and actual_order_id != expected_order_id:
+            raise WebhookBindingError(
+                "verified Razorpay event does not match the order bound to this signed Offer Lock"
+            )
         duplicate = any(
             (event_id and event.payload.get("webhook_event_id") == event_id)
             or event.payload.get("webhook_fingerprint") == fingerprint
@@ -105,6 +121,7 @@ class RazorpayWebhookIngestor:
             "webhook_fingerprint": fingerprint,
             "webhook_event_id": event_id,
             "event": event_name,
+            "order_binding_verified": expected_order_id is not None,
         }
         self.ledger.append(txn, ledger_type, "razorpay_webhook", event_payload)
         return WebhookReceipt(True, False, txn, event_name, ledger_type, fingerprint)

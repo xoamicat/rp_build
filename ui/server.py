@@ -2,14 +2,21 @@
 Run:  python ui/server.py  →  http://localhost:5000
 """
 import json, sys, os
+import secrets
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from flask import Flask, jsonify, request, send_file
+from flask import Flask, jsonify, request, send_file, send_from_directory
 
 app = Flask(__name__, static_folder=None)
+
+
+@app.route("/assets/<path:asset_path>")
+def local_asset(asset_path):
+    """Serve presentation-critical UI runtimes locally for an offline demo."""
+    return send_from_directory(ROOT / "ui", asset_path, max_age=86_400)
 
 # ── Pre-load run data ────────────────────────────────────────────────
 def _load_runs():
@@ -29,6 +36,9 @@ RUNS = _load_runs()
 @app.route("/claims/<session_id>")
 @app.route("/release")
 @app.route("/checkout-safety")
+@app.route("/fx")
+@app.route("/fx-promise")
+@app.route("/subscription-preflight")
 @app.route("/settlements")
 @app.route("/intent-check")
 @app.route("/speech-check")
@@ -137,6 +147,7 @@ _offer_locks = {}
 _offer_lock_service = None
 _offer_evidence_sessions = {}
 _offer_composer = None
+_offer_drafts = {}
 _test_mode_orders = {}
 _offer_store = None
 
@@ -211,6 +222,17 @@ def _find_test_mode_order(order_id):
     return info
 
 
+def _find_test_mode_order_for_txn(txn):
+    info = next((item for item in _test_mode_orders.values() if item.get("txn") == txn), None)
+    if info is not None:
+        return info
+    store = _get_offer_store()
+    info = store.find_test_order_for_txn(txn) if store is not None else None
+    if info is not None:
+        _test_mode_orders[info["order"]["id"]] = info
+    return info
+
+
 def _save_test_mode_order(order_id, info):
     _test_mode_orders[order_id] = info
     store = _get_offer_store()
@@ -230,9 +252,57 @@ def api_runtime_readiness():
         "offer_state_survives_restart": settings.has_durable_atlas_evidence,
         "test_mode_key_configured": bool(settings.has_razorpay_keys and settings.razorpay_key_id.startswith("rzp_test_")),
         "webhook_signature_configured": bool(settings.razorpay_webhook_secret),
+        "bound_webhook_order_verification": True,
         "public_https_required_for_webhook": True,
         "raw_buyer_text_in_notes": False,
     })
+
+
+@app.route("/api/fx-promise/assess", methods=["POST"])
+def api_fx_promise_assess():
+    """Price the quote → payment → dispute FX lifecycle without inventing bank rates."""
+    from sakshi.fx import FxPromiseEnvelope, FxPromiseError
+
+    data = request.json or {}
+    try:
+        envelope_raw = data.get("envelope") or {}
+        envelope = FxPromiseEnvelope(
+            buyer_currency=envelope_raw["buyer_currency"],
+            foreign_amount_minor=int(envelope_raw["foreign_amount_minor"]),
+            minor_per_unit=int(envelope_raw.get("minor_per_unit", 100)),
+            displayed_rate=envelope_raw["displayed_rate"],
+            reference_rate=envelope_raw["reference_rate"],
+            reference_provider=str(envelope_raw.get("reference_provider", "merchant_reference")),
+            reference_source_ref=str(envelope_raw["reference_source_ref"]),
+            reference_date=envelope_raw["reference_date"],
+            valid_through=envelope_raw["valid_through"],
+            allowed_spread_bps=int(envelope_raw.get("allowed_spread_bps", 150)),
+            settlement_currency=str(envelope_raw.get("settlement_currency", "INR")),
+        )
+        result = envelope.assess(
+            payment_rate=data["payment_rate"], payment_date=data["payment_date"],
+            payment_source_ref=str(data["payment_source_ref"]), dispute_rate=data.get("dispute_rate"),
+            dispute_date=data.get("dispute_date"), dispute_source_ref=data.get("dispute_source_ref"),
+        )
+        response = result.as_dict()
+        lock_id = str(data.get("lock_id") or "").strip()
+        if lock_id:
+            lock = _find_offer_lock(lock_id)
+            if lock is None:
+                return jsonify({"error": "OfferLock not found; create or select a signed offer before attaching FX evidence."}), 404
+            service = _get_offer_lock_service()
+            # The quote/capture/dispute facts are labelled and source-bound in
+            # the existing transaction chain. This is an audit attachment, not
+            # a claim that an after-the-fact calculation created buyer consent.
+            service.ledger.append(lock.txn, "fx.promise.assessed", "atlas_fx", response)
+            service.signer.seal_transaction(service.ledger, lock.txn)
+            response["evidence_session_id"] = "offer-" + lock.lock_id
+            response["evidence_attached"] = True
+        else:
+            response["evidence_attached"] = False
+        return jsonify(response)
+    except (KeyError, TypeError, ValueError, FxPromiseError) as exc:
+        return jsonify({"error": str(exc)}), 400
 
 
 def _get_offer_composer():
@@ -297,10 +367,17 @@ def api_offer_draft():
             return_policy_version="returns-v4",
             substitution_policy="no_substitution",
         )
+        draft_id = "draft_" + secrets.token_urlsafe(18)
+        # The browser receives an opaque identifier, not authority to rewrite
+        # the AI provenance or silently clear an ambiguity after composition.
+        _offer_drafts[draft_id] = composition
         return jsonify({
+            "draft_id": draft_id,
             "terms": composition.terms.as_dict(),
             "buyer_summary": composition.buyer_summary,
             "uncertainties": list(composition.uncertainties),
+            "clarifying_questions": list(composition.clarifying_questions),
+            "requires_clarification": composition.requires_clarification,
             "provenance": composition.provenance,
             "guardrails": [
                 "AI can select only merchant-catalogue SKUs and quantities.",
@@ -322,19 +399,23 @@ def api_offer_lock_create():
         approval_raw = data["approval"]
         service = _get_offer_lock_service()
         terms = _offer_terms_from_body(data["terms"])
+        draft_id = data.get("draft_id")
         ai_provenance = data.get("ai_provenance")
-        if isinstance(ai_provenance, dict):
-            # Only provenance hashes and the configured provider cross this boundary;
-            # raw buyer text and raw model output never enter the ledger.
-            service.ledger.append(data["txn"], "offer.ai.composed", "atlas_ai", {
-                "input_hash": str(ai_provenance.get("input_hash", "")),
-                "output_hash": str(ai_provenance.get("output_hash", "")),
-                "provider": str(ai_provenance.get("provider", "unknown")),
-                "model": str(ai_provenance.get("model", "unknown")),
-                "catalog_hash": str(ai_provenance.get("catalog_hash", "")),
-                "catalog_version": terms.catalog_version,
-                "consent_captured": False,
-            })
+        if draft_id:
+            composition = _offer_drafts.get(str(draft_id))
+            if composition is None:
+                raise ValueError("AI draft expired or is unknown; compose a fresh draft before signing")
+            if composition.terms.material_hash() != terms.material_hash():
+                raise ValueError("buyer-visible terms differ from the server-validated AI draft; compose again before signing")
+            if composition.requires_clarification:
+                questions = "; ".join(composition.clarifying_questions) or "Resolve the AI-reported ambiguity"
+                raise ValueError(f"buyer clarification is required before signing: {questions}")
+            # Only server-retained hashes and model identity enter evidence. Raw
+            # buyer text and raw model output never cross this boundary.
+            service.ledger.append(data["txn"], "offer.ai.composed", "atlas_ai", composition.ledger_payload())
+            _offer_drafts.pop(str(draft_id), None)  # one draft can create at most one lock
+        elif isinstance(ai_provenance, dict):
+            raise ValueError("AI provenance requires a server-issued draft_id; do not trust browser-supplied model evidence")
         approval = BuyerApproval(
             approval_ref=approval_raw["approval_ref"],
             playback=approval_raw["playback"],
@@ -380,6 +461,46 @@ def api_offer_lock_check(lock_id):
             "evidence_session_id": "offer-" + lock.lock_id,
         })
     except (KeyError, TypeError, ValueError) as exc:
+        return jsonify({"error": str(exc)}), 400
+
+
+@app.route("/api/subscriptions/preflight", methods=["POST"])
+def api_subscription_preflight():
+    """Stop a merchant subscription PATCH when its buyer-visible promise drifted.
+
+    This deliberately does *not* call Razorpay.  A merchant-owned worker calls
+    its subscription API only after this endpoint returns an ALLOW receipt.
+    """
+    from sakshi.subscriptions import SubscriptionPatch, SubscriptionPreflightError, preflight_subscription_update
+
+    data = request.json or {}
+    try:
+        lock = _find_offer_lock(str(data["lock_id"]))
+        if lock is None:
+            return jsonify({"error": "OfferLock not found. A subscription change needs a signed prior promise."}), 404
+        service = _get_offer_lock_service()
+        if not service.signer.verify(lock.evidence, service.signer.public_key_b64):
+            return jsonify({"error": "OfferLock signature is invalid for the configured evidence key."}), 409
+        patch_raw = data.get("patch") or {}
+        notify = patch_raw.get("customer_notify", True)
+        if not isinstance(notify, bool):
+            raise SubscriptionPreflightError("customer_notify must be a boolean")
+        patch = SubscriptionPatch(
+            subscription_id=str(patch_raw["subscription_id"]),
+            plan_id=str(patch_raw["plan_id"]),
+            offer_id=str(patch_raw["offer_id"]) if patch_raw.get("offer_id") is not None else None,
+            quantity=int(patch_raw["quantity"]) if patch_raw.get("quantity") is not None else None,
+            remaining_count=int(patch_raw["remaining_count"]) if patch_raw.get("remaining_count") is not None else None,
+            start_at=int(patch_raw["start_at"]) if patch_raw.get("start_at") is not None else None,
+            schedule_change_at=str(patch_raw.get("schedule_change_at", "now")),
+            customer_notify=notify,
+        )
+        proposed_terms = _offer_terms_from_body(data["proposed_terms"])
+        preflight = preflight_subscription_update(service, lock, patch, proposed_terms)
+        service.signer.seal_transaction(service.ledger, lock.txn)
+        response = preflight.as_dict() | {"evidence_session_id": "offer-" + lock.lock_id}
+        return jsonify(response)
+    except (KeyError, TypeError, ValueError, SubscriptionPreflightError) as exc:
         return jsonify({"error": str(exc)}), 400
 
 
@@ -551,14 +672,20 @@ def api_test_mode_status(order_id):
 def razorpay_webhook():
     """Verified payment truth for this demo server; raw body first, JSON second."""
     from sakshi.config import Settings
-    from sakshi.webhooks import RazorpayWebhookIngestor, WebhookSignatureError
+    from sakshi.webhooks import RazorpayWebhookIngestor, WebhookBindingError, WebhookSignatureError
 
     settings = Settings.from_env()
     if not settings.razorpay_webhook_secret:
         return jsonify({"error": "Razorpay webhook verification is not configured."}), 503
     try:
         service = _get_offer_lock_service()
-        receipt = RazorpayWebhookIngestor(service.ledger, settings.razorpay_webhook_secret).ingest(
+        def expected_order_for_txn(txn):
+            info = _find_test_mode_order_for_txn(txn)
+            return str(info["order"]["id"]) if info is not None else None
+
+        receipt = RazorpayWebhookIngestor(
+            service.ledger, settings.razorpay_webhook_secret, expected_order_for_txn=expected_order_for_txn
+        ).ingest(
             request.get_data(cache=False), request.headers.get("x-razorpay-signature"),
             request.headers.get("x-razorpay-event-id"),
         )
@@ -569,6 +696,8 @@ def razorpay_webhook():
         return jsonify(receipt.as_dict()), 200
     except WebhookSignatureError:
         return jsonify({"error": "Invalid Razorpay webhook signature."}), 401
+    except WebhookBindingError:
+        return jsonify({"error": "Verified webhook did not match the order bound to this Offer Lock."}), 409
     except ValueError as exc:
         return jsonify({"error": str(exc)}), 400
 

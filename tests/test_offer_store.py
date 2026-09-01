@@ -31,5 +31,6 @@ def test_durable_offer_store_round_trips_signed_lock_and_safe_test_order(tmp_pat
     })
     state = store.get_test_order("order_test_1")
     assert state["order"]["id"] == "order_test_1"
+    assert store.find_test_order_for_txn(lock.txn)["order"]["id"] == "order_test_1"
     assert "payment_id" not in state
     assert "razorpay_signature" not in state

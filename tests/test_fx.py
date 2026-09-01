@@ -2,7 +2,7 @@ from datetime import date
 
 import pytest
 
-from sakshi.fx import FbilClient, StaticRates, confidence_for
+from sakshi.fx import FbilClient, FxPromiseEnvelope, StaticRates, confidence_for
 
 
 def test_static_rates_roll_back_to_last_published_day():
@@ -50,3 +50,36 @@ def test_fbil_client_raises_when_everything_fails():
 
     with pytest.raises(RuntimeError):
         FbilClient(":memory:", transport=fake_transport).reference("USD", "INR", date(2026, 8, 26))
+
+
+def test_fx_promise_prices_payment_and_later_dispute_date_exposure_in_paise():
+    envelope = FxPromiseEnvelope(
+        buyer_currency="USD", foreign_amount_minor=1_000, minor_per_unit=100,
+        displayed_rate=96.00, reference_rate=95.68, reference_provider="FBIL",
+        reference_source_ref="fbil-usdinr-2026-08-20",
+        reference_date="2026-08-20", valid_through="2026-08-21", allowed_spread_bps=150,
+    )
+    result = envelope.assess(payment_rate=95.70, payment_date="2026-08-21", dispute_rate=97.20,
+                             dispute_date="2026-09-02", payment_source_ref="pay_pay_123",
+                             dispute_source_ref="dispute_disp_123")
+
+    assert result.quote_status == "ALLOW"
+    assert result.capture_status == "PASS"
+    assert result.payment_value_paise == 95_700
+    assert result.dispute_value_paise == 97_200
+    assert result.dispute_fx_delta_paise == 1_500
+    assert result.dispute_reserve_paise == 1_500
+    assert result.dispute_source_ref == "dispute_disp_123"
+
+
+def test_fx_promise_blocks_an_excessive_displayed_quote_and_marks_an_expired_quote():
+    envelope = FxPromiseEnvelope(
+        buyer_currency="USD", foreign_amount_minor=1_000, minor_per_unit=100,
+        displayed_rate=100.00, reference_rate=95.68, reference_provider="FBIL",
+        reference_source_ref="fbil-usdinr-2026-08-20",
+        reference_date="2026-08-20", valid_through="2026-08-20", allowed_spread_bps=150,
+    )
+    result = envelope.assess(payment_rate=95.70, payment_date="2026-08-21", payment_source_ref="pay_pay_123")
+
+    assert result.quote_status == "BLOCK"
+    assert result.quote_expired is True

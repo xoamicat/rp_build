@@ -5,9 +5,9 @@
 - A hash chain makes edits/deletions detectable. By itself it is **not tamper-proof**.
 - An Ed25519-signed intent binds the recorded privacy-safe intent hash to a key; a signed transaction seal binds a completed transaction chain head to that key.
 - An **Offer Lock** binds a versioned snapshot of the buyer-visible commercial promise—line items, prices, delivery, policy, substitutions and renewal terms—to an opaque buyer approval reference. It does not claim to prove the buyer's identity, delivery, or product quality.
-- The AI Offer Composer can draft a catalogue-backed offer but is not an authority. It cannot set prices/policies, grant consent, create an order, fulfil, refund, or decide drift; those boundaries are enforced by typed validation and deterministic code.
-- A verifier must pin/allow-list the public key for `sakshi_kid`. The public key present in a portable bundle is useful for transport, not identity by itself.
-- A verified webhook proves that the body was signed with the configured Razorpay webhook secret. It does not prove delivery, product quality, or facts outside the payment lifecycle.
+- The AI Offer Composer can draft a catalogue-backed offer but is not an authority. It cannot set prices/policies, grant consent, create an order, fulfil, refund, or decide drift; server-held draft IDs prevent the browser from rewriting AI provenance or clearing a model-reported ambiguity.
+- A verifier must pin/allow-list the public key for `sakshi_kid`. The public key present in a portable bundle is useful for transport, not identity by itself. `EvidenceTrustRegistry` supports active, expired and revoked key records for verifier-side rotation/revocation policy.
+- A verified webhook proves that the body was signed with the configured Razorpay webhook secret **and**, when linked to an Offer Lock, that its `order_id` matches the exact Razorpay Test Mode order issued for that lock. It does not prove delivery, product quality, or facts outside the payment lifecycle.
 - The dispute agent is a recommendation system. It must escalate when confidence, signature policy, or evidence coverage is insufficient.
 
 ## Controls implemented in this repository
@@ -15,11 +15,13 @@
 | Risk | Control |
 |---|---|
 | Model inventing an item, price, or approval | Composer accepts only known SKU + bounded quantity; server hydrates merchant prices/policies; malformed/unknown output fails closed; buyer confirmation precedes signing. |
+| Ambiguous AI draft being silently converted into consent | Model must emit uncertainties/questions; any uncertainty is a server-enforced clarification gate. One server-issued draft ID can create at most one lock. |
 | A fulfilment or renewal silently changing the approved offer | Signed, versioned Offer Lock; deterministic pre-fulfilment diff returns `ALLOW`, `RECONFIRM`, or identity `ESCALATE`. |
 | Raw utterance or payment PII leaking into proof | Intent receipt stores a raw-utterance hash and playback only; notes are limit-checked; event slimming/redaction removes contact/card fields. |
-| Database-only rewrite of an audit trail | Optional Ed25519 signed intent and signed completed-chain seal. |
+| Database-only rewrite of an audit trail | Optional Ed25519 signed intent and signed completed-chain seal; portable proof is verified against an independently configured key registry rather than its self-supplied public key alone. |
 | Process restart losing an Offer Lock | With `SAKSHI_EVIDENCE_PRIVATE_KEY_B64`, `DurableOfferStore` keeps the signed snapshot and safe Test Mode handoff state in its dedicated SQLite evidence store; direct full-lock evidence URLs resolve after restart. |
-| Forged or replayed lifecycle event | Constant-time HMAC validation of exact webhook bytes; `x-razorpay-event-id` idempotency with SHA-256 fallback. |
+| Forged, replayed or mislinked lifecycle event | Constant-time HMAC validation of exact webhook bytes; `x-razorpay-event-id` idempotency with SHA-256 fallback; linked webhooks reject an `order_id` that differs from the signed Offer Lock handoff. |
+| Unsupported FX assertion used as a payment fact | FX Promise Envelope keeps displayed, reference, payment-date and dispute-date rates as separately labelled inputs and computes integer-paise deltas. It never manufactures or represents a Razorpay/bank rate. |
 | Agent bypassing policy to create an order | `SakshiCheckout` invokes Razorpay only for allowed gate results. |
 | An automatic correction being presented as human approval | `policy.correction` and `human.override` are distinct event types and actors. |
 | Unverifiable automatic dispute outcome | `require_signed_evidence` policy makes invalid/missing seals escalate. |

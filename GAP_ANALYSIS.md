@@ -45,6 +45,19 @@ ALLOW | RECONFIRM BUYER | ESCALATE IDENTITY CHANGE
 
 The full commitment stays in the merchant evidence store. Razorpay `notes` carries only the lock ID, catalogue version, key ID and signature. Razorpay supports up to 15 `notes` entries of up to 256 characters, which the code validates before order creation. [Orders API](https://razorpay.com/docs/api/orders/create/)
 
+### The stronger wedge: mutable promises, not payment execution
+
+The current public Agent Studio page lists revenue-operations agents such as Dispute Responder, Subscription Recovery and Settlement Insights, and offers custom-agent building. Its public material does **not** describe a portable, cryptographically verifiable buyer-visible commercial receipt that is carried from an external buyer agent through a Razorpay payment event into a merchant OMS or a preflight subscription update. That is the gap hypothesis to test with Razorpay—not a claim about private/internal capabilities. [Agent Studio product page](https://razorpay.com/agent-studio/)
+
+Two high-value slices make the hypothesis concrete:
+
+| Moment | Existing documented rail | Atlas's narrowly different decision |
+|---|---|---|
+| Subscription plan/quantity/interval/effective-date change | Razorpay accepts a subscription `PATCH`, allows a schedule and lets Razorpay or the merchant notify the customer. | Before the merchant calls the PATCH, compare the proposed commercial promise to the signed prior playback. A material change requires new buyer confirmation; notification alone is not treated as consent proof. |
+| Cross-border payment later disputed | Payment-date settlement and dispute-date debit can use different processing-bank rates. | Bind displayed/reference/payment/dispute rates as separate evidence facts; calculate a review reserve and make the delta explainable. Do not claim to set the rate, execute FX or decide the dispute. |
+
+This is complementary to Agent Studio’s money-action validation: Agent Studio can validate the money action; Atlas asks whether the buyer's earlier commercial confirmation is still safe to carry into a **different downstream operational action**.
+
 ## Why this is complementary
 
 - **Razorpay continues to authorise and move money.** Atlas does not collect credentials, replace checkout, decide card risk, or claim to change Razorpay’s settlement process.
@@ -58,7 +71,8 @@ The full commitment stays in the merchant evidence store. Razorpay `notes` carri
 - `sakshi/integration.py`: optional OfferLock is verified and attached to a guarded Razorpay order only when the signed proof matches the configured trusted key.
 - `POST /api/offer-locks`: create a signed lock; `POST /api/offer-locks/{lock_id}/check`: compare fulfilment/renewal terms.
 - Dashboard: a live demonstration of price, item, delivery and return-policy drift returning **RECONFIRM**.
-- Tests: price increase, added item, late delivery, price decrease, seller change and notes-key capacity.
+- `sakshi/fx/promise.py` and `/fx-promise`: three-date FX Promise Envelope using labelled rate inputs and integer-paise calculations; it can append an assessment to a signed journey.
+- Tests: price increase, added item, late delivery, price decrease, seller change, notes-key capacity, FX quote/capture/dispute arithmetic and order-bound webhook rejection.
 
 ## Honest boundaries
 

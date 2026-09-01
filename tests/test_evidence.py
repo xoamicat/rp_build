@@ -7,7 +7,7 @@ import pytest
 from sakshi.checkers import default_stage1
 from sakshi.dispute import ChainView, DisputeAgent, DisputeClaim
 from sakshi.engine import Engine
-from sakshi.evidence import EvidenceSigner
+from sakshi.evidence import EvidenceSigner, EvidenceTrustRegistry, TrustedEvidenceKey
 from sakshi.gateway import StubGateway
 from sakshi.integration import CheckoutBlocked, EvidenceRequired, SakshiCheckout
 from sakshi.webhooks import RazorpayWebhookIngestor, WebhookSignatureError
@@ -26,6 +26,27 @@ def test_signed_intent_and_chain_seal_are_verifiable(ledger, merchant, intent, g
         DisputeClaim("other"), {},
     )[-1]["items"]
     assert integrity["signed_chain_seal_verified"] is True
+
+
+def test_verifier_side_key_registry_rejects_unknown_revoked_and_expired_keys():
+    signer = EvidenceSigner.generate_for_demo("rotating-key-2026")
+    proof = signer.sign({"type": "atlas.offer-lock.v1", "lock": "lock_123"})
+
+    active = EvidenceTrustRegistry([TrustedEvidenceKey("rotating-key-2026", signer.public_key_b64)])
+    assert active.verify(proof, on="2026-08-29") is True
+
+    unknown = EvidenceTrustRegistry([])
+    assert unknown.verify(proof, on="2026-08-29") is False
+
+    revoked = EvidenceTrustRegistry([TrustedEvidenceKey(
+        "rotating-key-2026", signer.public_key_b64, status="revoked"
+    )])
+    assert revoked.verify(proof, on="2026-08-29") is False
+
+    expired = EvidenceTrustRegistry([TrustedEvidenceKey(
+        "rotating-key-2026", signer.public_key_b64, valid_through="2026-08-28"
+    )])
+    assert expired.verify(proof, on="2026-08-29") is False
 
 
 def test_checkout_sidecar_never_creates_an_order_for_a_blocked_cart(ledger, merchant, intent, bad_cart):

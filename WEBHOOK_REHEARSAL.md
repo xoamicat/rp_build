@@ -12,14 +12,18 @@ This is the final external-proof rehearsal. It is deliberately separate from the
 ## One-time local setup
 
 ```powershell
-python scripts/generate_evidence_key.py   # creates a local git-ignored dev key once
-python ui/server.py
+.\.venv\Scripts\python.exe scripts\generate_evidence_key.py   # creates a local git-ignored dev key once
+.\.venv\Scripts\python.exe ui\server.py
 zrok share public localhost:5000
 ```
 
 Install and enable [zrok](https://docs.zrok.io/docs/guides/install/windows) first if it is not
 already available. Razorpay's current local-testing guidance recommends zrok; do not use a
 localhost URL, and do not assume that an `ngrok.io` URL will be accepted.
+
+Create a free hosted zrok account at [myzrok.io](https://myzrok.io/), then enable the downloaded
+client with its environment token before running the share command. The public share disappears
+when you stop the command with `Ctrl+C`; it is for this Test Mode rehearsal only.
 
 Copy the public zrok URL. In the Razorpay Dashboard **Test Mode**, create a webhook:
 

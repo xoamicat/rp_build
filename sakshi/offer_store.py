@@ -127,3 +127,10 @@ class DurableOfferStore:
             "SELECT state_json FROM atlas_test_mode_orders WHERE lock_id=? ORDER BY updated_at DESC LIMIT 1", (lock_id,)
         ).fetchone()
         return json.loads(row[0]) if row else None
+
+    def find_test_order_for_txn(self, txn: str) -> Optional[dict[str, Any]]:
+        """Resolve an expected Razorpay order before accepting a bound webhook."""
+        row = self.conn.execute(
+            "SELECT state_json FROM atlas_test_mode_orders WHERE txn=? ORDER BY updated_at DESC LIMIT 1", (txn,)
+        ).fetchone()
+        return json.loads(row[0]) if row else None

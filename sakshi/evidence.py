@@ -14,6 +14,7 @@ from __future__ import annotations
 import base64
 import hashlib
 from dataclasses import dataclass
+from datetime import date
 from typing import Any, Optional
 
 from .ledger import Ledger, canonical
@@ -65,6 +66,67 @@ class SignedEvidence:
         }
 
 
+def _verify_evidence(evidence: SignedEvidence, trusted_public_key: Optional[str] = None) -> bool:
+    """Verify canonical content and signature against an optional pinned key."""
+    if evidence.algorithm != "Ed25519":
+        return False
+    if trusted_public_key is not None and evidence.public_key != trusted_public_key:
+        return False
+    raw = _payload_bytes(evidence.payload)
+    if hashlib.sha256(raw).hexdigest() != evidence.payload_hash:
+        return False
+    try:
+        from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
+
+        Ed25519PublicKey.from_public_bytes(_unb64(evidence.public_key)).verify(
+            _unb64(evidence.signature), raw
+        )
+        return True
+    except Exception:
+        return False
+
+
+@dataclass(frozen=True)
+class TrustedEvidenceKey:
+    """An independently configured public-key pin with lifecycle state.
+
+    The evidence bundle's key is only transport data.  A reviewer must match
+    it against a merchant-controlled registry before accepting a signature.
+    """
+
+    key_id: str
+    public_key: str
+    status: str = "active"
+    valid_from: Optional[str] = None
+    valid_through: Optional[str] = None
+
+    def active_on(self, on: Optional[str] = None) -> bool:
+        if self.status != "active":
+            return False
+        try:
+            target = date.fromisoformat(on) if on else date.today()
+            if self.valid_from and target < date.fromisoformat(self.valid_from):
+                return False
+            if self.valid_through and target > date.fromisoformat(self.valid_through):
+                return False
+        except ValueError:
+            return False
+        return True
+
+
+class EvidenceTrustRegistry:
+    """Verifier-side key allow-list supporting rotation, expiry and revocation."""
+
+    def __init__(self, keys: list[TrustedEvidenceKey]) -> None:
+        if len({key.key_id for key in keys}) != len(keys):
+            raise EvidenceError("evidence trust registry cannot contain duplicate key ids")
+        self._keys = {key.key_id: key for key in keys}
+
+    def verify(self, evidence: SignedEvidence, *, on: Optional[str] = None) -> bool:
+        key = self._keys.get(evidence.key_id)
+        return bool(key and key.active_on(on) and _verify_evidence(evidence, key.public_key))
+
+
 class EvidenceSigner:
     """Signs only canonical, privacy-safe evidence payloads with Ed25519."""
 
@@ -113,22 +175,7 @@ class EvidenceSigner:
 
     def verify(self, evidence: SignedEvidence, trusted_public_key: Optional[str] = None) -> bool:
         """Verify hash + signature, optionally pinning the expected public key."""
-        if evidence.algorithm != "Ed25519":
-            return False
-        if trusted_public_key is not None and evidence.public_key != trusted_public_key:
-            return False
-        raw = _payload_bytes(evidence.payload)
-        if hashlib.sha256(raw).hexdigest() != evidence.payload_hash:
-            return False
-        try:
-            from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
-
-            Ed25519PublicKey.from_public_bytes(_unb64(evidence.public_key)).verify(
-                _unb64(evidence.signature), raw
-            )
-            return True
-        except Exception:
-            return False
+        return _verify_evidence(evidence, trusted_public_key)
 
     def seal_transaction(self, ledger: Ledger, txn: str) -> SignedEvidence:
         """Sign the current per-transaction head, then append the seal to the ledger."""

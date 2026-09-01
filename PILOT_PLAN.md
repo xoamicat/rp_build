@@ -11,6 +11,8 @@ Start with one merchant that has all three systems below:
 | Chat, voice or buyer agent | final buyer-visible offer plus opaque approval reference | signed `OfferLock` ID and compact proof references | creates its existing Razorpay Order with those references in `notes` |
 | Razorpay | signed payment/refund/dispute webhooks | privacy-safe lifecycle evidence | Atlas appends the verified event to the same transaction journey |
 | OMS or subscription service | current SKU, price, delivery and policy terms before shipment, substitution or renewal | `ALLOW`, `RECONFIRM`, or `ESCALATE` plus a field-level diff | fulfils, asks the buyer again, or creates an operations case |
+| Subscription-update worker | proposed Razorpay PATCH metadata plus merchant-mapped buyer-visible terms | preflight receipt + `razorpay_patch_permitted` | calls PATCH only on `ALLOW`; otherwise holds the change for buyer reconfirmation/ops |
+| International finance / disputes | labelled displayed, reference, payment-day and dispute-day rates | FX Promise Envelope delta/reserve and evidence attachment | explains exposure; attaches source records; does not execute FX or decide the dispute |
 
 Nothing asks Atlas to handle a card, UPI credential, payout or customer address. `order.notes` carries only short hashes/IDs/signature references; the signed snapshot remains in the merchant evidence store.
 
@@ -25,6 +27,8 @@ Run a 30-day shadow-mode pilot for one SKU category where substitutions or deliv
 | False-reconfirm rate | buyer/ops says the flagged diff was not material / all reconfirm requests | under merchant-agreed tolerance |
 | Time to resolve | time from detected diff to buyer/ops decision | lower than current support case path |
 | Evidence completeness | cases with offer, payment webhook and OMS diff linked / reviewed cases | 100% for pilot cases |
+| Subscription release integrity | subscription PATCHs preceded by an Atlas receipt / sampled PATCHs | 100% in pilot scope |
+| FX explanation completeness | international-dispute cases with all three labelled rate dates / reviewed FX cases | 100% in pilot scope |
 
 ## Five merchant-discovery questions
 
@@ -53,5 +57,7 @@ Keep customer data out of this research record. A judge should see the count of 
 - Authenticate agent, OMS and operations calls; use tenant isolation, retention/deletion controls and audit access logs.
 - Put verified webhook ingress behind public HTTPS, queue after HMAC verification, and monitor retries/idempotency.
 - Make merchant-specific materiality policy versioned, reviewable and reversible.
+- Enforce the subscription release receipt inside the merchant worker, not only in the dashboard, and retain the exact associated Razorpay subscription/event IDs.
+- Have finance/operations approve FX source selection, expiry/allowed-spread policy and review workflow before using FX assessments operationally.
 
 The repo’s [INTEGRATION.md](INTEGRATION.md) shows the exact data movement and [SECURITY.md](SECURITY.md) describes the present security boundaries.

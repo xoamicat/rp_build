@@ -18,7 +18,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from kasauti.agents import GuardedAgent, RuleAgent  # noqa: E402
 from kasauti.provenance import write_manifest  # noqa: E402
-from kasauti.runner import run_batch, summarize  # noqa: E402
+from kasauti.runner import run_batch, strict_pass_k, summarize  # noqa: E402
 from kasauti.scenario import load_scenarios  # noqa: E402
 from sakshi.config import Settings  # noqa: E402
 from sakshi.llm import CachedProvider, LlmCache, provider_from_env  # noqa: E402
@@ -56,14 +56,20 @@ def main() -> None:
     naive = run_batch(scenarios, lambda engine: RuleAgent(), provider, k=args.k, out_path=out / "naive.jsonl", memory=memory)
     guarded = run_batch(scenarios, lambda engine: GuardedAgent(RuleAgent(), engine), provider, k=args.k,
                         out_path=out / "guarded.jsonl", memory=memory)
+    naive_pass_k = strict_pass_k(naive)
+    guarded_pass_k = strict_pass_k(guarded)
     manifest = write_manifest(out / "run-manifest.json", provider=getattr(provider, "name", args.llm),
-                              repeats=args.k, seed=0, scenarios=scenarios, memory_applied=memory is not None)
+                              repeats=args.k, seed=0, scenarios=scenarios, memory_applied=memory is not None,
+                              pass_k={"naive": naive_pass_k.as_dict(), "guarded": guarded_pass_k.as_dict()})
 
     print(f"{len(scenarios)} scenarios x k={args.k}, judge={getattr(provider, 'name', args.llm)}"
           + (f", corrections applied: {len(memory)}" if memory else "") + "\n")
     print(summarize(naive).table())
     print()
     print(summarize(guarded).table())
+    print()
+    print(naive_pass_k.line())
+    print(guarded_pass_k.line())
     print(f"\nprovenance: {manifest} (synthetic benchmark; not a live-payment result)")
     print("\nwords = dark-pattern findings in the agent's speech (scanner + judge); disputes = recommendation matches / raised.")
 

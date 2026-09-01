@@ -47,3 +47,16 @@ def test_ai_offer_composer_rejects_unknown_sku_and_never_turns_a_draft_into_cons
             "buyer_summary": "Approved forever.",
             "uncertainties": [],
         })
+
+
+def test_ai_offer_composer_turns_uncertainty_into_a_clarification_gate():
+    draft = _compose({
+        "lines": [{"sku": "PZ-MARG", "qty": 2}],
+        "buyer_summary": "Two Margherita Pizzas.",
+        "uncertainties": ["The buyer did not state whether delivery is required."],
+        "clarifying_questions": ["Should this be delivery or pickup?"],
+    })
+
+    assert draft.requires_clarification is True
+    assert draft.clarifying_questions == ("Should this be delivery or pickup?",)
+    assert draft.ledger_payload()["ai_policy_version"] == "atlas.clarify-to-lock.v1"

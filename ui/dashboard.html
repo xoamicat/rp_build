@@ -5,10 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SettleX Atlas — Agentic Commerce Evidence</title>
 
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="/assets/vendor/tailwind-browser.js"></script>
+    <script defer src="/assets/vendor/alpine.min.js"></script>
+    <script src="/assets/vendor/lucide.min.js"></script>
 
     <script>
         tailwind.config = {
@@ -59,9 +58,11 @@
         .gradient-text { background: linear-gradient(120deg, #0b4bb3 0%, #1479e8 52%, #43a9ee 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
         .gradient-btn { background: linear-gradient(120deg, #0754be 0%, #167be7 58%, #45a9ed 100%); color: white; transition: all .25s; box-shadow: 0 12px 24px rgba(23,105,224,.24); }
         .gradient-btn:hover { box-shadow: 0 16px 30px rgba(23,105,224,.32); transform: translateY(-1px); }
-        .sidebar-link { transition: all .2s ease; cursor: pointer; border-left: 3px solid transparent; }
-        .sidebar-link:hover { background: rgba(255,255,255,.12); border-left-color: rgba(255,255,255,.5); }
-        .sidebar-link.active { background: linear-gradient(90deg, rgba(255,255,255,.22), transparent); border-left-color: #fff; }
+        .sidebar-link { transition: all .2s ease; cursor: pointer; border: 1px solid transparent; }
+        .sidebar-link:hover { background: rgba(255,255,255,.10); border-color: rgba(255,255,255,.12); }
+        .sidebar-link.active { background: linear-gradient(115deg, rgba(255,255,255,.22), rgba(255,255,255,.07)); border-color: rgba(255,255,255,.20); box-shadow: 0 10px 22px rgba(2,15,36,.14); }
+        .sidebar-step { min-width: 1.55rem; height: 1.55rem; display: inline-flex; align-items: center; justify-content: center; border-radius: .5rem; font-size: .68rem; font-weight: 800; background: rgba(255,255,255,.12); color: #dbeafe; }
+        .sidebar-link.active .sidebar-step { background: #e0f6ff; color: #0754be; }
         .fade-in { animation: fadeIn .4s cubic-bezier(0.4,0,0.2,1); }
         .chat-user, .chat-user .text-gray-800 {
             background: linear-gradient(135deg, #0b62ce, #3295eb);
@@ -111,49 +112,38 @@
 <body x-data="dashboard()" class="text-gray-800 flex h-screen overflow-hidden">
 
     <!-- Sidebar -->
-    <div class="glass-dark w-[220px] h-full flex flex-col text-gray-300 shadow-glass z-20 flex-shrink-0">
-        <div class="p-5 border-b border-gray-700/50">
+    <div class="glass-dark w-[236px] h-full flex flex-col text-gray-300 shadow-glass z-20 flex-shrink-0">
+        <div class="p-5 border-b border-white/15">
             <h1 class="text-xl font-bold tracking-tight text-white mb-1">SETTLEX ATLAS</h1>
-            <p class="text-xs text-blue-300 font-medium tracking-wide uppercase">Proof · Recon · Test</p>
+            <p class="text-xs text-blue-200 font-medium tracking-wide uppercase">Commercial promise control</p>
         </div>
 
-        <div class="flex-1 overflow-y-auto py-4 custom-scrollbar">
-            <div class="px-5 mb-2 text-[10px] font-bold text-gray-500 uppercase tracking-wider">Start here</div>
-            <a @click.prevent="navigate('hero')" href="/" class="sidebar-link flex items-center px-5 py-2.5 text-sm" :class="{'active text-white': page==='hero'}">
-                <i data-lucide="layout" class="w-4 h-4 mr-3 opacity-70"></i> How it works
-            </a>
+        <div class="flex-1 overflow-y-auto px-3 py-5 custom-scrollbar">
+            <div class="px-2 mb-3 text-[10px] font-bold text-blue-200/75 uppercase tracking-[.14em]">Judge walkthrough</div>
+            <div class="space-y-1.5">
+                <a @click.prevent="navigate('offerlock')" href="/offer-lock" class="sidebar-link rounded-xl flex items-center px-3 py-3 text-sm" :class="{'active text-white': page==='offerlock'}">
+                    <span class="sidebar-step mr-3">1</span><span><span class="block font-semibold">Lock buyer promise</span><span class="block text-[11px] text-blue-100/65 mt-0.5">AI draft → explicit approval</span></span>
+                </a>
+                <a @click.prevent="navigate('diary')" href="/evidence" class="sidebar-link rounded-xl flex items-center px-3 py-3 text-sm" :class="{'active text-white': page==='diary' || page==='dispute'}">
+                    <span class="sidebar-step mr-3">2</span><span><span class="block font-semibold">Verify payment proof</span><span class="block text-[11px] text-blue-100/65 mt-0.5">Webhook → sealed trail</span></span>
+                </a>
+                <a @click.prevent="navigate('subscription')" href="/subscription-preflight" class="sidebar-link rounded-xl flex items-center px-3 py-3 text-sm" :class="{'active text-white': page==='subscription'}">
+                    <span class="sidebar-step mr-3">3</span><span><span class="block font-semibold">Stop unsafe change</span><span class="block text-[11px] text-blue-100/65 mt-0.5">Changed renewal → hold</span></span>
+                </a>
+                <a @click.prevent="navigate('fx')" href="/fx-promise" class="sidebar-link rounded-xl flex items-center px-3 py-3 text-sm" :class="{'active text-white': page==='fx'}">
+                    <span class="sidebar-step mr-3">4</span><span><span class="block font-semibold">Explain FX exposure</span><span class="block text-[11px] text-blue-100/65 mt-0.5">Three-date rate evidence</span></span>
+                </a>
+                <a @click.prevent="navigate('benchmark')" href="/release" class="sidebar-link rounded-xl flex items-center px-3 py-3 text-sm" :class="{'active text-white': page==='benchmark'}">
+                    <span class="sidebar-step mr-3">5</span><span><span class="block font-semibold">Test before release</span><span class="block text-[11px] text-blue-100/65 mt-0.5">Policy checks → pass^k</span></span>
+                </a>
+            </div>
 
-            <div class="px-5 mt-6 mb-2 text-[10px] font-bold text-gray-500 uppercase tracking-wider">The demo flow</div>
-            <a @click.prevent="navigate('offerlock')" href="/offer-lock" class="sidebar-link flex items-center px-5 py-2.5 text-sm" :class="{'active text-white': page==='offerlock'}">
-                <div class="w-2 h-2 rounded-full bg-cyan-300 mr-3 pulse-dot"></div> 1. Lock buyer offer
-            </a>
-
-            <div class="px-5 mt-6 mb-2 text-[10px] font-bold text-gray-500 uppercase tracking-wider">Follow the money</div>
-            <a @click.prevent="navigate('settle')" href="/settlements" class="sidebar-link flex items-center px-5 py-2.5 text-sm" :class="{'active text-white': page==='settle'}">
-                <i data-lucide="calculator" class="w-4 h-4 mr-3 opacity-70"></i> 2. Reconcile settlement
-            </a>
-
-            <div class="px-5 mt-6 mb-2 text-[10px] font-bold text-gray-500 uppercase tracking-wider">Prove and improve</div>
-            <a @click.prevent="navigate('diary')" href="/evidence" class="sidebar-link flex items-center px-5 py-2.5 text-sm" :class="{'active text-white': page==='diary'}">
-                <i data-lucide="lock" class="w-4 h-4 mr-3 opacity-70"></i> 3. Review evidence
-            </a>
-            <a @click.prevent="navigate('dispute')" href="/claims" class="sidebar-link flex items-center px-5 py-2.5 text-sm" :class="{'active text-white': page==='dispute'}">
-                <i data-lucide="gavel" class="w-4 h-4 mr-3 opacity-70"></i> 4. Resolve a claim
-            </a>
-            <a @click.prevent="navigate('benchmark')" href="/release" class="sidebar-link flex items-center px-5 py-2.5 text-sm" :class="{'active text-white': page==='benchmark'}">
-                <i data-lucide="bar-chart-2" class="w-4 h-4 mr-3 opacity-70"></i> 5. Test before release
-            </a>
-
-            <div class="px-5 mt-6 mb-2 text-[10px] font-bold text-gray-500 uppercase tracking-wider">Sandboxes</div>
-            <a @click.prevent="navigate('gate')" href="/intent-check" class="sidebar-link flex items-center px-5 py-2.5 text-sm" :class="{'active text-white': page==='gate'}">
-                <i data-lucide="shield" class="w-4 h-4 mr-3 opacity-70"></i> Intent check
-            </a>
-            <a @click.prevent="navigate('speech')" href="/speech-check" class="sidebar-link flex items-center px-5 py-2.5 text-sm" :class="{'active text-white': page==='speech'}">
-                <i data-lucide="message-square" class="w-4 h-4 mr-3 opacity-70"></i> Speech check
-            </a>
-            <a @click.prevent="navigate('agent')" href="/checkout-safety" class="sidebar-link flex items-center px-5 py-2.5 text-sm" :class="{'active text-white': page==='agent'}">
-                <i data-lucide="shield-alert" class="w-4 h-4 mr-3 opacity-70"></i> Checkout safety lab
-            </a>
+            <div class="mt-7 border-t border-white/15 pt-4">
+                <a @click.prevent="navigate('hero')" href="/" class="sidebar-link rounded-lg flex items-center px-3 py-2.5 text-xs text-blue-100/85" :class="{'active text-white': page==='hero'}">
+                    <i data-lucide="layout" class="w-4 h-4 mr-2.5 opacity-75"></i> Product overview
+                </a>
+                <p class="px-3 pt-3 text-[10px] leading-relaxed text-blue-100/55">Advanced operational views remain available when needed.</p>
+            </div>
         </div>
     </div>
 
@@ -271,7 +261,7 @@
                         <section class="grid md:grid-cols-3 gap-3 text-xs">
                             <div class="glass rounded-xl p-3 border" :class="runtimeReadiness.offer_state_survives_restart ? 'border-emerald-200 bg-emerald-50/60' : 'border-amber-200 bg-amber-50/60'"><div class="font-bold" :class="runtimeReadiness.offer_state_survives_restart ? 'text-emerald-800' : 'text-amber-800'"><i data-lucide="database" class="w-3.5 h-3.5 inline mr-1"></i> Evidence posture</div><div class="text-gray-700 mt-1" x-text="runtimeReadiness.offer_state_survives_restart ? 'Durable key-pinned store configured' : 'Ephemeral demo store — shown honestly'"></div><div class="text-gray-500 mt-1" x-text="runtimeReadiness.offer_state_survives_restart ? 'Signed locks and safe order state survive restart.' : 'Production enables this with an Ed25519 key and ATLAS_EVIDENCE_DB.'"></div></div>
                             <div class="glass rounded-xl p-3 border" :class="runtimeReadiness.test_mode_key_configured ? 'border-blue-200 bg-blue-50/60' : 'border-gray-200 bg-white/80'"><div class="font-bold text-blue-800"><i data-lucide="credit-card" class="w-3.5 h-3.5 inline mr-1"></i> Payment boundary</div><div class="text-gray-700 mt-1" x-text="runtimeReadiness.test_mode_key_configured ? 'Razorpay Test Mode key detected' : 'No Test Mode key exposed in the UI'"></div><div class="text-gray-500 mt-1">Live keys are refused by the Test Mode handoff.</div></div>
-                            <div class="glass rounded-xl p-3 border" :class="runtimeReadiness.webhook_signature_configured ? 'border-violet-200 bg-violet-50/60' : 'border-gray-200 bg-white/80'"><div class="font-bold text-violet-800"><i data-lucide="shield-check" class="w-3.5 h-3.5 inline mr-1"></i> Webhook truth</div><div class="text-gray-700 mt-1" x-text="runtimeReadiness.webhook_signature_configured ? 'HMAC verification secret configured' : 'Signature secret not configured on this server'"></div><div class="text-gray-500 mt-1">A public HTTPS URL is still required for external delivery.</div></div>
+                            <div class="glass rounded-xl p-3 border" :class="runtimeReadiness.webhook_signature_configured ? 'border-violet-200 bg-violet-50/60' : 'border-gray-200 bg-white/80'"><div class="font-bold text-violet-800"><i data-lucide="shield-check" class="w-3.5 h-3.5 inline mr-1"></i> Webhook truth</div><div class="text-gray-700 mt-1" x-text="runtimeReadiness.webhook_signature_configured ? 'HMAC verification secret configured' : 'Signature secret not configured on this server'"></div><div class="text-gray-500 mt-1">Only verified public-HTTPS delivery becomes payment evidence.</div></div>
                         </section>
                     </template>
 
@@ -291,7 +281,7 @@
                             <div class="mt-4 grid md:grid-cols-3 gap-3 text-xs fade-in">
                                 <div class="bg-white/80 rounded-xl border border-violet-100 p-3"><div class="font-bold text-violet-800">Model provenance</div><div class="font-mono text-gray-600 mt-1" x-text="aiComposition.provenance.provider + ' · ' + aiComposition.provenance.model"></div><div class="font-mono text-[10px] text-gray-400 mt-1" x-text="aiComposition.provenance.input_hash.substring(0,16) + '…'"></div></div>
                                 <div class="bg-white/80 rounded-xl border border-violet-100 p-3"><div class="font-bold text-violet-800">Catalog validation</div><div class="text-gray-600 mt-1">All selected SKUs, prices and policy terms are server-validated against the merchant catalogue.</div></div>
-                                <div class="bg-white/80 rounded-xl border border-violet-100 p-3"><div class="font-bold text-violet-800">Buyer still decides</div><div class="text-gray-600 mt-1" x-text="aiComposition.uncertainties.length ? 'Uncertainties: ' + aiComposition.uncertainties.join('; ') : 'Review the draft below, then explicitly sign it.'"></div></div>
+                                <div class="bg-white/80 rounded-xl border border-violet-100 p-3" :class="aiComposition.requires_clarification ? 'border-amber-300 bg-amber-50/80' : ''"><div class="font-bold text-violet-800" x-text="aiComposition.requires_clarification ? 'Clarify before lock' : 'Buyer still decides'"></div><div class="text-gray-600 mt-1" x-text="aiComposition.requires_clarification ? (aiComposition.clarifying_questions.length ? aiComposition.clarifying_questions.join(' · ') : aiComposition.uncertainties.join('; ')) : 'Review the draft below, then explicitly sign it.'"></div></div>
                             </div>
                         </template>
                         <template x-if="aiComposeError"><div class="mt-3 text-xs rounded-lg border border-red-200 bg-red-50 text-red-800 px-3 py-2" x-text="aiComposeError"></div></template>
@@ -314,7 +304,7 @@
                                 </div>
                                 <div class="text-xs text-gray-600 rounded-lg border border-gray-100 p-3"><span class="font-semibold text-gray-800">Buyer approval:</span> <span x-text="offerLockDraft.approval.playback"></span></div>
                             </div>
-                            <button @click="createOfferLock" :disabled="offerLockLoading" class="gradient-btn mt-5 w-full px-4 py-2.5 rounded-lg font-semibold text-sm flex justify-center items-center disabled:opacity-50"><i data-lucide="lock-keyhole" class="w-4 h-4 mr-2" :class="{'animate-spin': offerLockLoading}"></i><span x-text="offerLockResult ? 'Create a fresh signed lock' : 'Sign this buyer-visible offer'"></span></button>
+                            <button @click="createOfferLock" :disabled="offerLockLoading || (aiComposition && aiComposition.requires_clarification)" class="gradient-btn mt-5 w-full px-4 py-2.5 rounded-lg font-semibold text-sm flex justify-center items-center disabled:opacity-50"><i data-lucide="lock-keyhole" class="w-4 h-4 mr-2" :class="{'animate-spin': offerLockLoading}"></i><span x-text="aiComposition && aiComposition.requires_clarification ? 'Clarification required before signing' : (offerLockResult ? 'Create a fresh signed lock' : 'Sign this buyer-visible offer')"></span></button>
                         </section>
 
                         <section class="glass p-5 rounded-2xl border border-blue-100 shadow-card">
@@ -359,6 +349,8 @@
                             </div>
                             <div class="flex flex-wrap gap-3 mt-5">
                                 <button @click="createTestModeOrder" :disabled="testModeLoading" class="bg-cyan-700 hover:bg-cyan-800 text-white px-4 py-2.5 rounded-lg text-sm font-semibold disabled:opacity-50 flex items-center"><i data-lucide="flask-conical" class="w-4 h-4 mr-2" :class="{'animate-spin': testModeLoading}"></i><span x-text="testModeCheckout ? 'Show guarded Test Mode order' : 'Create guarded Test Mode order'"></span></button>
+                                <button @click="openFxForOffer" class="bg-white border border-blue-200 text-blue-800 hover:bg-blue-50 px-4 py-2.5 rounded-lg text-sm font-semibold flex items-center"><i data-lucide="coins" class="w-4 h-4 mr-2"></i> Attach an FX Promise</button>
+                                <button @click="openSubscriptionForOffer" class="bg-white border border-indigo-200 text-indigo-800 hover:bg-indigo-50 px-4 py-2.5 rounded-lg text-sm font-semibold flex items-center"><i data-lucide="repeat-2" class="w-4 h-4 mr-2"></i> Preflight a subscription change</button>
                                 <template x-if="testModeCheckout"><button @click="openRazorpayTestCheckout" :disabled="testModeLoading" class="bg-blue-950 hover:bg-blue-900 text-white px-4 py-2.5 rounded-lg text-sm font-semibold disabled:opacity-50 flex items-center"><i data-lucide="credit-card" class="w-4 h-4 mr-2"></i> Open Razorpay Test Checkout</button></template>
                                 <template x-if="testModeCheckout"><button @click="refreshTestModeStatus" :disabled="testModeLoading" class="bg-white border border-blue-200 text-blue-800 hover:bg-blue-50 px-4 py-2.5 rounded-lg text-sm font-semibold disabled:opacity-50 flex items-center"><i data-lucide="refresh-cw" class="w-4 h-4 mr-2"></i> Check webhook status</button></template>
                             </div>
@@ -731,131 +723,218 @@
 
             <!-- PAGE: FX -->
             <template x-if="page === 'fx'">
-                <div class="max-w-4xl mx-auto space-y-6 fade-in pb-12">
-                    <div>
-                        <h1 class="text-2xl font-bold text-gray-900">Cross-border FX: Guard the Rate at Every Stage</h1>
-                        <p class="text-sm text-gray-600 mt-1">The same claim-check engine applied to currency conversion</p>
-                    </div>
-
-                    <div class="relative border-l-2 border-gray-200 ml-4 space-y-10 py-4">
-
-                        <!-- Stage 1 -->
-                        <div class="relative pl-8">
-                            <div class="absolute w-6 h-6 bg-blue-100 border-2 border-blue-500 rounded-full -left-[13px] top-1 flex items-center justify-center text-[10px] font-bold text-blue-700">1</div>
-                            <div class="glass p-5 rounded-xl shadow-sm border border-gray-100">
-                                <h3 class="font-bold text-gray-800 text-lg mb-3">The Quote</h3>
-                                <div class="bg-gray-50 p-4 rounded-lg space-y-3 mb-4">
-                                    <div class="flex justify-between items-center border-b border-gray-200 pb-2">
-                                        <span class="text-sm text-gray-600">Customer Question</span>
-                                        <span class="text-sm font-medium">"How much in dollars?"</span>
-                                    </div>
-                                    <div class="flex justify-between items-center border-b border-gray-200 pb-2">
-                                        <span class="text-sm text-gray-600">Agent Quote</span>
-                                        <span class="text-sm font-medium text-red-600">$10.00 <span class="text-xs font-normal text-gray-500">(₹1,000 at ₹100/$)</span></span>
-                                    </div>
-                                    <div class="flex justify-between items-center">
-                                        <span class="text-sm text-gray-600">FBIL Official Rate</span>
-                                        <span class="text-sm font-medium">₹95.68/$</span>
-                                    </div>
-                                </div>
-                                <div class="status-block p-3 rounded text-sm flex items-start shadow-sm mb-2">
-                                    <i data-lucide="shield-alert" class="w-4 h-4 mr-2 mt-0.5 shrink-0"></i>
-                                    <div>
-                                        <div class="font-bold mb-1">Atlas Intervention: BLOCKED</div>
-                                        <div>4.5% markup exceeds 1.5% allowed band. Rewriting quote to $9.70 to remain compliant.</div>
-                                    </div>
-                                </div>
-                            </div>
+                <div class="max-w-5xl mx-auto space-y-6 fade-in pb-12">
+                    <div class="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4">
+                        <div>
+                            <div class="text-xs font-bold uppercase tracking-[0.16em] text-rz-600 mb-2">Cross-border promise control</div>
+                            <h1 class="text-2xl font-bold text-gray-900">FX Promise Envelope</h1>
+                            <p class="text-sm text-gray-600 mt-1 max-w-2xl">Keep the buyer’s displayed rate, the payment-date rate and the dispute-date debit rate as three different, reviewable facts.</p>
                         </div>
-
-                        <!-- Stage 2 -->
-                        <div class="relative pl-8">
-                            <div class="absolute w-6 h-6 bg-green-100 border-2 border-green-500 rounded-full -left-[13px] top-1 flex items-center justify-center text-[10px] font-bold text-green-700">2</div>
-                            <div class="glass p-5 rounded-xl shadow-sm border border-gray-100">
-                                <h3 class="font-bold text-gray-800 text-lg mb-3">The Bank's Rate</h3>
-                                <div class="bg-gray-50 p-4 rounded-lg space-y-3 mb-4">
-                                    <div class="flex justify-between items-center border-b border-gray-200 pb-2">
-                                        <span class="text-sm text-gray-600">Customer Pays</span>
-                                        <span class="text-sm font-medium">$9.70</span>
-                                    </div>
-                                    <div class="flex justify-between items-center border-b border-gray-200 pb-2">
-                                        <span class="text-sm text-gray-600">Bank Conversion Rate</span>
-                                        <span class="text-sm font-medium">₹96.80/$</span>
-                                    </div>
-                                    <div class="flex justify-between items-center border-b border-gray-200 pb-2">
-                                        <span class="text-sm text-gray-600">FBIL Rate (Time of transaction)</span>
-                                        <span class="text-sm font-medium">₹95.68/$</span>
-                                    </div>
-                                    <div class="flex justify-between items-center">
-                                        <span class="text-sm text-gray-600">Calculated Spread</span>
-                                        <span class="text-sm font-medium text-green-600">1.2%</span>
-                                    </div>
-                                </div>
-                                <div class="status-pass p-3 rounded text-sm flex items-start shadow-sm">
-                                    <i data-lucide="check-circle" class="w-4 h-4 mr-2 mt-0.5 shrink-0"></i>
-                                    <div>
-                                        <div class="font-bold mb-1">Atlas Verification: PASS</div>
-                                        <div>Bank's 1.2% spread is within allowed 1.5% range. Transaction logged to diary.</div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Stage 3 -->
-                        <div class="relative pl-8">
-                            <div class="absolute w-6 h-6 bg-amber-100 border-2 border-amber-500 rounded-full -left-[13px] top-1 flex items-center justify-center text-[10px] font-bold text-amber-700">3</div>
-                            <div class="glass p-5 rounded-xl shadow-sm border border-gray-100">
-                                <h3 class="font-bold text-gray-800 text-lg mb-3">The Dispute (12 days later)</h3>
-                                <div class="bg-gray-50 p-4 rounded-lg space-y-3 mb-4">
-                                    <div class="flex justify-between items-center border-b border-gray-200 pb-2">
-                                        <span class="text-sm text-gray-600">Payment Day Rate</span>
-                                        <span class="text-sm font-medium">₹95.70/$</span>
-                                    </div>
-                                    <div class="flex justify-between items-center border-b border-gray-200 pb-2">
-                                        <span class="text-sm text-gray-600">Dispute Day Rate</span>
-                                        <span class="text-sm font-medium text-amber-600">₹97.20/$</span>
-                                    </div>
-                                    <div class="flex justify-between items-center border-b border-gray-200 pb-2">
-                                        <span class="text-sm text-gray-600">Rate Movement</span>
-                                        <span class="text-sm font-medium">₹15 per dollar shift</span>
-                                    </div>
-                                    <div class="flex justify-between items-center">
-                                        <span class="text-sm text-gray-600">Net loss if refunded today</span>
-                                        <span class="text-sm font-bold text-red-600">₹43 + fees</span>
-                                    </div>
-                                </div>
-                                <div class="status-flag p-3 rounded text-sm flex items-start shadow-sm">
-                                    <i data-lucide="flag" class="w-4 h-4 mr-2 mt-0.5 shrink-0"></i>
-                                    <div>
-                                        <div class="font-bold mb-1">Atlas Verdict: FLAG / CONTEST</div>
-                                        <div>Customer claim invalid based on sealed diary. Attaching intent receipt + rate evidence for representment.</div>
-                                    </div>
-                                </div>
-                            </div>
+                        <div class="text-xs text-blue-800 bg-blue-50 border border-blue-100 rounded-lg px-3 py-2 max-w-md">
+                            <span class="font-bold">Demo input only.</span> This never claims a bank or Razorpay rate; it computes evidence from the labelled values supplied below.
                         </div>
                     </div>
 
-                    <div class="glass p-6 rounded-xl shadow-card border border-gray-200 mt-8">
-                        <h3 class="font-bold text-gray-800 mb-4 flex items-center"><i data-lucide="git-merge" class="w-5 h-5 mr-2 text-rz-500"></i> Why Two Rails Matter</h3>
-                        <div class="grid grid-cols-2 gap-6">
-                            <div class="bg-white p-4 rounded border border-gray-100 shadow-sm">
-                                <div class="font-semibold text-rz-600 mb-2 border-b pb-2">UPI (Domestic)</div>
-                                <ul class="text-sm text-gray-600 space-y-1 list-disc pl-4">
-                                    <li>Guards words only</li>
-                                    <li>Disputes are simple refunds</li>
-                                    <li>No currency risk</li>
-                                </ul>
-                            </div>
-                            <div class="bg-white p-4 rounded border border-gray-100 shadow-sm">
-                                <div class="font-semibold text-rz-600 mb-2 border-b pb-2">Cards (Cross-border)</div>
-                                <ul class="text-sm text-gray-600 space-y-1 list-disc pl-4">
-                                    <li>Guards words + rate</li>
-                                    <li>Disputes need evidence for representment</li>
-                                    <li>High FX spread risk</li>
-                                </ul>
-                            </div>
+                    <div class="grid lg:grid-cols-3 gap-4">
+                        <div class="glass p-5 rounded-xl border border-blue-100 shadow-sm">
+                            <div class="flex items-center gap-2 text-blue-700 font-semibold"><span class="w-6 h-6 rounded-full bg-blue-100 grid place-items-center text-xs">1</span> Buyer quote</div>
+                            <p class="text-sm text-gray-600 mt-3">Record what the agent showed, the source it compared, and an expiry.</p>
+                        </div>
+                        <div class="glass p-5 rounded-xl border border-indigo-100 shadow-sm">
+                            <div class="flex items-center gap-2 text-indigo-700 font-semibold"><span class="w-6 h-6 rounded-full bg-indigo-100 grid place-items-center text-xs">2</span> Payment capture</div>
+                            <p class="text-sm text-gray-600 mt-3">Compare the observed payment-date rate against the defined band.</p>
+                        </div>
+                        <div class="glass p-5 rounded-xl border border-amber-100 shadow-sm">
+                            <div class="flex items-center gap-2 text-amber-700 font-semibold"><span class="w-6 h-6 rounded-full bg-amber-100 grid place-items-center text-xs">3</span> Dispute exposure</div>
+                            <p class="text-sm text-gray-600 mt-3">Price the later rate delta separately as a review reserve, not as a refund outcome.</p>
                         </div>
                     </div>
+
+                    <div class="grid lg:grid-cols-2 gap-6">
+                        <section class="glass p-6 rounded-xl shadow-card border border-gray-100 space-y-4">
+                            <div>
+                                <h2 class="font-bold text-gray-900">1. Signed quote envelope</h2>
+                                <p class="text-xs text-gray-500 mt-1">These fields should be frozen with the buyer-visible offer playback.</p>
+                            </div>
+                            <div class="grid grid-cols-2 gap-3">
+                                <label class="text-xs font-semibold text-gray-600">Buyer currency
+                                    <input x-model="fxPromise.envelope.buyer_currency" maxlength="3" class="mt-1 w-full rounded-lg border-gray-200 text-sm uppercase">
+                                </label>
+                                <label class="text-xs font-semibold text-gray-600">Foreign amount (minor units)
+                                    <input type="number" min="1" x-model.number="fxPromise.envelope.foreign_amount_minor" class="mt-1 w-full rounded-lg border-gray-200 text-sm">
+                                </label>
+                                <label class="text-xs font-semibold text-gray-600">Displayed INR / unit
+                                    <input type="number" step="0.01" min="0.01" x-model.number="fxPromise.envelope.displayed_rate" class="mt-1 w-full rounded-lg border-gray-200 text-sm">
+                                </label>
+                                <label class="text-xs font-semibold text-gray-600">Reference INR / unit
+                                    <input type="number" step="0.01" min="0.01" x-model.number="fxPromise.envelope.reference_rate" class="mt-1 w-full rounded-lg border-gray-200 text-sm">
+                                </label>
+                                <label class="text-xs font-semibold text-gray-600">Reference provider
+                                    <input x-model="fxPromise.envelope.reference_provider" class="mt-1 w-full rounded-lg border-gray-200 text-sm">
+                                </label>
+                                <label class="text-xs font-semibold text-gray-600">Reference source ref
+                                    <input x-model="fxPromise.envelope.reference_source_ref" class="mt-1 w-full rounded-lg border-gray-200 text-sm font-mono">
+                                </label>
+                                <label class="text-xs font-semibold text-gray-600">Allowed band (bps)
+                                    <input type="number" min="0" x-model.number="fxPromise.envelope.allowed_spread_bps" class="mt-1 w-full rounded-lg border-gray-200 text-sm">
+                                </label>
+                                <label class="text-xs font-semibold text-gray-600">Reference date
+                                    <input type="date" x-model="fxPromise.envelope.reference_date" class="mt-1 w-full rounded-lg border-gray-200 text-sm">
+                                </label>
+                                <label class="text-xs font-semibold text-gray-600">Quote valid through
+                                    <input type="date" x-model="fxPromise.envelope.valid_through" class="mt-1 w-full rounded-lg border-gray-200 text-sm">
+                                </label>
+                            </div>
+                        </section>
+
+                        <section class="glass p-6 rounded-xl shadow-card border border-gray-100 space-y-4">
+                            <div>
+                                <h2 class="font-bold text-gray-900">2–3. Observed lifecycle data</h2>
+                                <p class="text-xs text-gray-500 mt-1">In production this comes from labelled payment/recon and dispute records—not the LLM.</p>
+                            </div>
+                            <div class="grid grid-cols-2 gap-3">
+                                <label class="col-span-2 text-xs font-semibold text-gray-600">Attach to signed Offer Lock (optional)
+                                    <input x-model="fxPromise.lock_id" placeholder="Open the Offer Lock demo first to attach this assessment" class="mt-1 w-full rounded-lg border-gray-200 text-sm font-mono">
+                                </label>
+                                <label class="text-xs font-semibold text-gray-600">Payment-date rate
+                                    <input type="number" step="0.01" min="0.01" x-model.number="fxPromise.payment_rate" class="mt-1 w-full rounded-lg border-gray-200 text-sm">
+                                </label>
+                                <label class="text-xs font-semibold text-gray-600">Payment date
+                                    <input type="date" x-model="fxPromise.payment_date" class="mt-1 w-full rounded-lg border-gray-200 text-sm">
+                                </label>
+                                <label class="text-xs font-semibold text-gray-600 col-span-2">Payment source ref
+                                    <input x-model="fxPromise.payment_source_ref" class="mt-1 w-full rounded-lg border-gray-200 text-sm font-mono">
+                                </label>
+                                <label class="text-xs font-semibold text-gray-600">Dispute-date rate
+                                    <input type="number" step="0.01" min="0.01" x-model.number="fxPromise.dispute_rate" class="mt-1 w-full rounded-lg border-gray-200 text-sm">
+                                </label>
+                                <label class="text-xs font-semibold text-gray-600">Dispute date
+                                    <input type="date" x-model="fxPromise.dispute_date" class="mt-1 w-full rounded-lg border-gray-200 text-sm">
+                                </label>
+                                <label class="text-xs font-semibold text-gray-600 col-span-2">Dispute source ref
+                                    <input x-model="fxPromise.dispute_source_ref" class="mt-1 w-full rounded-lg border-gray-200 text-sm font-mono">
+                                </label>
+                            </div>
+                            <button @click="assessFxPromise" :disabled="fxPromiseLoading" class="gradient-btn w-full py-3 rounded-lg font-semibold shadow-md inline-flex justify-center items-center gap-2 disabled:opacity-50">
+                                <i data-lucide="shield-check" class="w-5 h-5" :class="{'animate-spin': fxPromiseLoading}"></i>
+                                <span x-text="fxPromiseLoading ? 'Assessing lifecycle…' : 'Assess FX lifecycle'"></span>
+                            </button>
+                            <p x-show="fxPromiseError" x-text="fxPromiseError" class="text-xs text-red-600 bg-red-50 border border-red-100 rounded-lg p-3"></p>
+                        </section>
+                    </div>
+
+                    <template x-if="fxPromiseResult">
+                        <section class="glass p-6 rounded-xl shadow-card border border-gray-100 fade-in">
+                            <div class="flex flex-col md:flex-row md:items-start md:justify-between gap-4 border-b border-gray-100 pb-5">
+                                <div>
+                                    <div class="text-xs font-bold uppercase tracking-wider text-rz-600">Computed evidence</div>
+                                    <h2 class="text-lg font-bold text-gray-900 mt-1">The risk is a <span x-text="fxPromiseResult.dispute_fx_delta_paise >= 0 ? '₹' + (fxPromiseResult.dispute_fx_delta_paise / 100).toFixed(2) + ' debit-side delta' : '₹' + Math.abs(fxPromiseResult.dispute_fx_delta_paise / 100).toFixed(2) + ' credit-side delta'"></span>, not a made-up refund amount.</h2>
+                                </div>
+                                <div class="text-xs text-gray-500 max-w-sm">Integer-paise calculation; merchant must attach source records before using it in an operational decision.</div>
+                            </div>
+                            <div class="grid md:grid-cols-3 gap-4 mt-5">
+                                <div class="rounded-xl p-4 border" :class="fxPromiseResult.quote_status === 'ALLOW' && !fxPromiseResult.quote_expired ? 'bg-green-50 border-green-100' : 'bg-red-50 border-red-100'">
+                                    <div class="text-xs font-bold uppercase tracking-wider text-gray-500">Buyer quote</div>
+                                    <div class="font-bold text-lg mt-1" x-text="fxPromiseResult.quote_status"></div>
+                                    <div class="text-xs text-gray-600 mt-2">Spread <span x-text="fxPromiseResult.quote_spread_bps"></span> bps <span x-show="fxPromiseResult.quote_expired">· expired at capture</span></div>
+                                    <div class="text-sm font-semibold mt-2">₹<span x-text="(fxPromiseResult.displayed_value_paise / 100).toFixed(2)"></span></div>
+                                </div>
+                                <div class="rounded-xl p-4 border" :class="fxPromiseResult.capture_status === 'PASS' ? 'bg-green-50 border-green-100' : 'bg-amber-50 border-amber-100'">
+                                    <div class="text-xs font-bold uppercase tracking-wider text-gray-500">Payment capture</div>
+                                    <div class="font-bold text-lg mt-1" x-text="fxPromiseResult.capture_status"></div>
+                                    <div class="text-xs text-gray-600 mt-2">Spread <span x-text="fxPromiseResult.capture_spread_bps"></span> bps on <span x-text="fxPromiseResult.payment_date"></span></div>
+                                    <div class="text-sm font-semibold mt-2">₹<span x-text="(fxPromiseResult.payment_value_paise / 100).toFixed(2)"></span></div>
+                                </div>
+                                <div class="rounded-xl p-4 border border-amber-100 bg-amber-50">
+                                    <div class="text-xs font-bold uppercase tracking-wider text-gray-500">Dispute-day FX reserve</div>
+                                    <div class="font-bold text-lg mt-1">₹<span x-text="((fxPromiseResult.dispute_reserve_paise || 0) / 100).toFixed(2)"></span></div>
+                                    <div class="text-xs text-gray-600 mt-2">Observed on <span x-text="fxPromiseResult.dispute_date || '—'"></span></div>
+                                    <div class="text-sm font-semibold mt-2">₹<span x-text="((fxPromiseResult.dispute_value_paise || 0) / 100).toFixed(2)"></span> debit basis</div>
+                                </div>
+                            </div>
+                            <div class="mt-5 text-xs text-gray-500 bg-slate-50 rounded-lg p-3">Atlas does not price FX, execute conversion, determine fees, or decide a dispute. It binds the commercial quote to reviewable source data so a merchant can explain the three-date difference.</div>
+                            <template x-if="fxPromiseResult.evidence_attached"><button @click="navigate('diary', fxPromiseResult.evidence_session_id)" class="mt-3 text-sm font-semibold text-blue-800 underline">Review this signed evidence attachment</button></template>
+                        </section>
+                    </template>
+                </div>
+            </template>
+
+            <!-- PAGE: SUBSCRIPTION PREFLIGHT -->
+            <template x-if="page === 'subscription'">
+                <div class="max-w-5xl mx-auto space-y-6 fade-in pb-12">
+                    <div class="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4">
+                        <div>
+                            <div class="text-xs font-bold uppercase tracking-[0.16em] text-indigo-600 mb-2">Before a money-changing mutation</div>
+                            <h1 class="text-2xl font-bold text-gray-900">Subscription Change Preflight</h1>
+                            <p class="text-sm text-gray-600 mt-1 max-w-2xl">Check the proposed plan, price and renewal promise before a merchant worker calls Razorpay’s subscription-update API.</p>
+                        </div>
+                        <div class="text-xs text-indigo-900 bg-indigo-50 border border-indigo-100 rounded-lg px-3 py-2 max-w-md"><span class="font-bold">No PATCH is sent from this screen.</span> A notification flag is not treated as buyer consent.</div>
+                    </div>
+
+                    <div class="grid lg:grid-cols-3 gap-4">
+                        <div class="glass p-5 rounded-xl border border-blue-100 shadow-sm"><div class="text-xs font-bold text-blue-700">1 · Signed prior promise</div><p class="text-sm text-gray-600 mt-2">The buyer-visible commercial terms are the comparison baseline.</p></div>
+                        <div class="glass p-5 rounded-xl border border-indigo-100 shadow-sm"><div class="text-xs font-bold text-indigo-700">2 · Proposed subscription patch</div><p class="text-sm text-gray-600 mt-2">The merchant maps its plan and entitlement changes into typed terms.</p></div>
+                        <div class="glass p-5 rounded-xl border border-amber-100 shadow-sm"><div class="text-xs font-bold text-amber-700">3 · Release decision</div><p class="text-sm text-gray-600 mt-2">Only <span class="font-mono">ALLOW</span> can release the downstream worker. Other outcomes stop the patch.</p></div>
+                    </div>
+
+                    <div class="grid lg:grid-cols-2 gap-6">
+                        <section class="glass p-6 rounded-xl shadow-card border border-gray-100 space-y-4">
+                            <div><h2 class="font-bold text-gray-900">Signed lock + planned API mutation</h2><p class="text-xs text-gray-500 mt-1">The plan ID is never trusted as an explanation of price or entitlement; the merchant supplies typed proposed terms separately.</p></div>
+                            <label class="text-xs font-semibold text-gray-600 block">Offer Lock ID
+                                <input x-model="subscriptionPreflight.lock_id" placeholder="Create an Offer Lock first, or paste its ID" class="mt-1 w-full rounded-lg border-gray-200 text-sm font-mono">
+                            </label>
+                            <div class="grid grid-cols-2 gap-3">
+                                <label class="text-xs font-semibold text-gray-600">Subscription ID
+                                    <input x-model="subscriptionPreflight.patch.subscription_id" class="mt-1 w-full rounded-lg border-gray-200 text-sm font-mono">
+                                </label>
+                                <label class="text-xs font-semibold text-gray-600">New Razorpay plan ID
+                                    <input x-model="subscriptionPreflight.patch.plan_id" class="mt-1 w-full rounded-lg border-gray-200 text-sm font-mono">
+                                </label>
+                                <label class="text-xs font-semibold text-gray-600">Quantity
+                                    <input type="number" min="1" x-model.number="subscriptionPreflight.patch.quantity" class="mt-1 w-full rounded-lg border-gray-200 text-sm">
+                                </label>
+                                <label class="text-xs font-semibold text-gray-600">Remaining cycles
+                                    <input type="number" min="1" x-model.number="subscriptionPreflight.patch.remaining_count" class="mt-1 w-full rounded-lg border-gray-200 text-sm">
+                                </label>
+                                <label class="text-xs font-semibold text-gray-600">Apply change
+                                    <select x-model="subscriptionPreflight.patch.schedule_change_at" class="mt-1 w-full rounded-lg border-gray-200 text-sm"><option value="now">Now</option><option value="cycle_end">Cycle end</option></select>
+                                </label>
+                                <label class="text-xs font-semibold text-gray-600 flex items-end gap-2 pb-1"><input type="checkbox" x-model="subscriptionPreflight.patch.customer_notify" class="rounded border-gray-300 text-indigo-600"> Razorpay sends customer notice</label>
+                            </div>
+                        </section>
+
+                        <section class="glass p-6 rounded-xl shadow-card border border-gray-100 space-y-4">
+                            <div><h2 class="font-bold text-gray-900">Proposed buyer-visible renewal promise</h2><p class="text-xs text-gray-500 mt-1">This is what Atlas compares and what a buyer must re-confirm if it materially changed.</p></div>
+                            <div class="grid grid-cols-2 gap-3">
+                                <label class="text-xs font-semibold text-gray-600">Renewal price (paise)
+                                    <input type="number" min="0" x-model.number="subscriptionPreflight.proposed_terms.lines[0].unit_paise" class="mt-1 w-full rounded-lg border-gray-200 text-sm">
+                                </label>
+                                <label class="text-xs font-semibold text-gray-600">Delivery / activation by
+                                    <input type="date" x-model="subscriptionPreflight.proposed_terms.delivery_by" class="mt-1 w-full rounded-lg border-gray-200 text-sm">
+                                </label>
+                                <label class="text-xs font-semibold text-gray-600 col-span-2">Buyer playback for renewal
+                                    <input x-model="subscriptionPreflight.proposed_terms.renewal_summary" class="mt-1 w-full rounded-lg border-gray-200 text-sm">
+                                </label>
+                                <label class="text-xs font-semibold text-gray-600">Return policy version
+                                    <input x-model="subscriptionPreflight.proposed_terms.return_policy_version" class="mt-1 w-full rounded-lg border-gray-200 text-sm font-mono">
+                                </label>
+                                <label class="text-xs font-semibold text-gray-600">Substitution policy
+                                    <input x-model="subscriptionPreflight.proposed_terms.substitution_policy" class="mt-1 w-full rounded-lg border-gray-200 text-sm font-mono">
+                                </label>
+                            </div>
+                            <button @click="runSubscriptionPreflight" :disabled="subscriptionPreflightLoading" class="gradient-btn w-full py-3 rounded-lg font-semibold shadow-md inline-flex justify-center items-center gap-2 disabled:opacity-50"><i data-lucide="shield-check" class="w-5 h-5" :class="{'animate-spin': subscriptionPreflightLoading}"></i><span x-text="subscriptionPreflightLoading ? 'Checking promise…' : 'Run preflight before PATCH'"></span></button>
+                            <p x-show="subscriptionPreflightError" x-text="subscriptionPreflightError" class="text-xs text-red-600 bg-red-50 border border-red-100 rounded-lg p-3"></p>
+                        </section>
+                    </div>
+
+                    <template x-if="subscriptionPreflightResult">
+                        <section class="glass p-6 rounded-xl shadow-card border-2 fade-in" :class="subscriptionPreflightResult.razorpay_patch_permitted ? 'border-emerald-200 bg-emerald-50/30' : 'border-amber-200 bg-amber-50/30'">
+                            <div class="flex flex-col md:flex-row md:items-start md:justify-between gap-4"><div><div class="text-xs uppercase font-bold tracking-wider" :class="subscriptionPreflightResult.razorpay_patch_permitted ? 'text-emerald-700' : 'text-amber-700'">Subscription release receipt</div><h2 class="text-xl font-bold mt-1" :class="subscriptionPreflightResult.razorpay_patch_permitted ? 'text-emerald-800' : 'text-amber-800'" x-text="subscriptionPreflightResult.razorpay_patch_permitted ? 'PATCH may proceed' : 'PATCH withheld — new confirmation required'"></h2><p class="text-sm text-gray-600 mt-2 max-w-2xl" x-text="subscriptionPreflightResult.next_step"></p></div><span class="px-3 py-1.5 rounded-full font-bold text-sm" :class="subscriptionPreflightResult.razorpay_patch_permitted ? 'status-pass' : 'status-flag'" x-text="subscriptionPreflightResult.decision.status"></span></div>
+                            <template x-if="subscriptionPreflightResult.decision.deltas.length"><div class="grid md:grid-cols-2 gap-3 mt-5"><template x-for="delta in subscriptionPreflightResult.decision.deltas" :key="delta.field"><div class="rounded-xl bg-white/80 border border-gray-200 p-3"><div class="font-semibold text-sm text-gray-800" x-text="delta.reason"></div><div class="font-mono text-xs text-gray-500 mt-1" x-text="delta.field"></div><div class="text-xs text-gray-600 mt-2">Locked: <span x-text="JSON.stringify(delta.locked)"></span></div><div class="text-xs text-gray-600 mt-1">Proposed: <span x-text="JSON.stringify(delta.observed)"></span></div></div></template></div></template>
+                            <div class="mt-5 bg-white/80 border border-indigo-100 rounded-lg p-3 text-xs text-indigo-900"><span class="font-bold">Why this matters:</span> Razorpay may notify the customer of a subscription update, but notification handling is not the same as a buyer-visible, signed reconfirmation of changed commercial terms.</div>
+                            <button @click="navigate('diary', subscriptionPreflightResult.evidence_session_id)" class="mt-4 text-sm font-semibold text-blue-800 underline">Review the sealed preflight receipt</button>
+                        </section>
+                    </template>
                 </div>
             </template>
 
@@ -1053,6 +1132,7 @@
                     <div>
                         <h1 class="text-2xl font-bold text-gray-900">Sealed Audit Diary</h1>
                         <p class="text-sm text-gray-600 mt-1">Hash-chained, tamper-evident record; completed demo transactions also show Ed25519 seal verification.</p>
+                        <p class="text-xs text-gray-500 mt-2">Steps restart at 01 for each evidence journey. Hover a step to see its immutable ledger position.</p>
                     </div>
 
                     <div class="glass p-5 rounded-xl shadow-sm border border-gray-200 flex space-x-3">
@@ -1071,8 +1151,8 @@
                             <div class="relative space-y-4 before:absolute before:inset-0 before:ml-[23px] before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-gray-300 before:to-transparent">
                             <template x-for="(event, idx) in diaryData.events">
                                 <div class="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active">
-                                    <div class="flex items-center justify-center w-10 h-10 rounded-full border border-white bg-gray-100 group-[.is-active]:bg-rz-500 text-gray-500 group-[.is-active]:text-white shadow shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 z-10">
-                                        <span class="text-xs font-bold" x-text="event.seq"></span>
+                                    <div class="flex items-center justify-center w-10 h-10 rounded-full border border-white bg-gray-100 group-[.is-active]:bg-rz-500 text-gray-500 group-[.is-active]:text-white shadow shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 z-10" :title="'Journey step ' + (idx + 1) + ' · immutable ledger event #' + event.seq">
+                                        <span class="text-xs font-bold" x-text="String(idx + 1).padStart(2, '0')"></span>
                                     </div>
                                     <div class="w-[calc(100%-4rem)] md:w-[calc(50%-2.5rem)] glass p-4 rounded-xl shadow-sm border border-gray-200 hover:shadow-md transition-shadow">
                                         <div class="flex items-center justify-between mb-2 pb-2 border-b border-gray-100">
@@ -1179,6 +1259,12 @@
                     </div>
                     <template x-if="runManifest">
                         <div class="text-xs text-gray-600 bg-white/80 border border-gray-200 rounded-xl px-4 py-3"><span class="font-bold text-gray-800">Loaded manifest:</span> <span x-text="runManifest.provider"></span> · seed <span x-text="runManifest.seed"></span> · <span x-text="runManifest.scenario_count"></span> fixtures · generated <span x-text="new Date(runManifest.created_at).toLocaleString()"></span></div>
+                    </template>
+                    <template x-if="runManifest?.strict_pass_k?.guarded">
+                        <div class="glass border border-emerald-200 bg-emerald-50/40 rounded-xl p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                            <div><div class="text-xs font-bold uppercase tracking-wider text-emerald-700">Strict synthetic reliability gate</div><div class="font-bold text-emerald-900 mt-1"><span x-text="'pass^' + runManifest.strict_pass_k.guarded.k"></span> = <span x-text="runManifest.strict_pass_k.guarded.passed_scenarios + '/' + runManifest.strict_pass_k.guarded.scenarios"></span> for the guarded twin</div></div>
+                            <div class="text-xs text-emerald-800 max-w-md">Every repeat must meet its policy, impact, speech and dispute labels. This is internal synthetic regression evidence—not a τ-bench or real-world reliability claim.</div>
+                        </div>
                     </template>
 
                     <div class="glass rounded-xl shadow-sm border border-gray-200 overflow-hidden">
@@ -1459,6 +1545,42 @@
                 settleResult: null,
                 settleLoading: false,
 
+                // FX Promise Envelope — labelled demo inputs, never an invented bank rate.
+                fxPromise: {
+                    lock_id: '',
+                    envelope: {
+                        buyer_currency: 'USD', foreign_amount_minor: 1000, minor_per_unit: 100,
+                        displayed_rate: 96.00, reference_rate: 95.68, reference_provider: 'FBIL',
+                        reference_source_ref: 'fbil-usdinr-2026-08-20',
+                        reference_date: '2026-08-20', valid_through: '2026-08-21',
+                        allowed_spread_bps: 150, settlement_currency: 'INR'
+                    },
+                    payment_rate: 95.70, payment_date: '2026-08-21', payment_source_ref: 'pay_demo_001',
+                    dispute_rate: 97.20, dispute_date: '2026-09-02', dispute_source_ref: 'disp_demo_001'
+                },
+                fxPromiseResult: null,
+                fxPromiseLoading: false,
+                fxPromiseError: '',
+
+                // Subscription update controls: Atlas releases a merchant worker, never the Razorpay PATCH itself.
+                subscriptionPreflight: {
+                    lock_id: '',
+                    patch: {
+                        subscription_id: 'sub_demo_monthly_001', plan_id: 'plan_pizza_monthly_v2',
+                        quantity: 2, remaining_count: 12, schedule_change_at: 'cycle_end', customer_notify: false
+                    },
+                    proposed_terms: {
+                        merchant_id: 'demo-pizza-co', offer_id: 'offer_pizza_001', catalog_version: 'menu-2026-08-28.1',
+                        lines: [{sku: 'PZ-MARG', name: 'Margherita Pizza', qty: 2, unit_paise: 32000}],
+                        currency: 'INR', shipping_paise: 4000, tax_paise: 0,
+                        delivery_by: '2026-08-30', return_policy_version: 'returns-v4', substitution_policy: 'no_substitution',
+                        renewal_summary: 'Renews monthly at ₹680 including delivery. No substitutions.'
+                    }
+                },
+                subscriptionPreflightResult: null,
+                subscriptionPreflightLoading: false,
+                subscriptionPreflightError: '',
+
                 // Narration
                 narrationText: '',
                 narrationResult: null,
@@ -1507,7 +1629,8 @@
                     const routes = {
                         hero: '/', offerlock: '/offer-lock', settle: '/settlements',
                         diary: '/evidence', dispute: '/claims', benchmark: '/release',
-                        gate: '/intent-check', speech: '/speech-check', agent: '/checkout-safety'
+                        gate: '/intent-check', speech: '/speech-check', agent: '/checkout-safety', fx: '/fx-promise',
+                        subscription: '/subscription-preflight'
                     };
                     const base = routes[page] || '/';
                     return sessionId && (page === 'diary' || page === 'dispute')
@@ -1522,7 +1645,8 @@
                     const pages = {
                         '/': 'hero', '/offer-lock': 'offerlock', '/settlements': 'settle',
                         '/evidence': 'diary', '/claims': 'dispute', '/release': 'benchmark',
-                        '/intent-check': 'gate', '/speech-check': 'speech', '/checkout-safety': 'agent'
+                        '/intent-check': 'gate', '/speech-check': 'speech', '/checkout-safety': 'agent',
+                        '/fx': 'fx', '/fx-promise': 'fx', '/subscription-preflight': 'subscription'
                     };
                     if (evidence) {
                         this.page = 'diary';
@@ -1550,6 +1674,7 @@
                         'offerlock': 'Lock buyer offer',
                         'agent': 'Stop unsafe checkout',
                         'fx': 'Cross-border FX',
+                        'subscription': 'Subscription preflight',
                         'settle': 'Reconcile settlement',
                         'narration': 'Bank Narration',
                         'diary': 'Review evidence',
@@ -1785,7 +1910,7 @@
                         this.offerLockDraft.approval.approval_ref = 'buyer_approval_' + Date.now();
                         const r = await fetch('/api/offer-locks', {
                             method: 'POST', headers: {'Content-Type': 'application/json'},
-                            body: JSON.stringify({...this.offerLockDraft, ai_provenance: this.aiComposition?.provenance || null})
+                            body: JSON.stringify({...this.offerLockDraft, draft_id: this.aiComposition?.draft_id || null})
                         });
                         const data = await r.json();
                         if (!r.ok) throw new Error(data.error || 'Could not sign the offer');
@@ -1827,6 +1952,42 @@
                     } else {
                         this.navigate('dispute', sid);
                     }
+                },
+
+                openFxForOffer() {
+                    if (this.offerLockResult?.lock?.lock_id) this.fxPromise.lock_id = this.offerLockResult.lock.lock_id;
+                    this.navigate('fx');
+                },
+
+                openSubscriptionForOffer() {
+                    const locked = this.offerLockResult?.lock;
+                    if (locked?.lock_id && locked?.terms) {
+                        this.subscriptionPreflight.lock_id = locked.lock_id;
+                        this.subscriptionPreflight.proposed_terms = JSON.parse(JSON.stringify(locked.terms));
+                        this.subscriptionPreflight.proposed_terms.renewal_summary = 'Renews monthly at ₹680 including delivery. No substitutions.';
+                    }
+                    this.subscriptionPreflightResult = null;
+                    this.subscriptionPreflightError = '';
+                    this.navigate('subscription');
+                },
+
+                async runSubscriptionPreflight() {
+                    this.subscriptionPreflightLoading = true;
+                    this.subscriptionPreflightError = '';
+                    this.subscriptionPreflightResult = null;
+                    try {
+                        const r = await fetch('/api/subscriptions/preflight', {
+                            method: 'POST', headers: {'Content-Type': 'application/json'},
+                            body: JSON.stringify(this.subscriptionPreflight)
+                        });
+                        const data = await r.json();
+                        if (!r.ok) throw new Error(data.error || 'Subscription preflight failed');
+                        this.subscriptionPreflightResult = data;
+                    } catch (e) {
+                        this.subscriptionPreflightError = e.message || 'Subscription preflight failed';
+                    }
+                    this.subscriptionPreflightLoading = false;
+                    this.$nextTick(() => lucide.createIcons());
                 },
 
                 async createTestModeOrder() {
@@ -1947,6 +2108,26 @@
                         this.settleResult = await r.json();
                     } catch(e) { console.error(e); }
                     this.settleLoading = false;
+                    this.$nextTick(() => lucide.createIcons());
+                },
+
+                async assessFxPromise() {
+                    this.fxPromiseLoading = true;
+                    this.fxPromiseError = '';
+                    this.fxPromiseResult = null;
+                    try {
+                        const r = await fetch('/api/fx-promise/assess', {
+                            method: 'POST',
+                            headers: {'Content-Type': 'application/json'},
+                            body: JSON.stringify(this.fxPromise)
+                        });
+                        const data = await r.json();
+                        if (!r.ok) throw new Error(data.error || 'FX assessment failed');
+                        this.fxPromiseResult = data;
+                    } catch(e) {
+                        this.fxPromiseError = e.message || 'FX assessment failed';
+                    }
+                    this.fxPromiseLoading = false;
                     this.$nextTick(() => lucide.createIcons());
                 },
 

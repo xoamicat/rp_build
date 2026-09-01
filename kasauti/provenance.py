@@ -14,7 +14,7 @@ from typing import Any
 
 
 def write_manifest(path: Path, *, provider: str, repeats: int, seed: int, scenarios: list[Any],
-                   memory_applied: bool) -> Path:
+                   memory_applied: bool, pass_k: dict[str, Any] | None = None) -> Path:
     payload = {
         "schema": "kasauti.run-manifest.v1",
         "created_at": datetime.now(timezone.utc).isoformat(),
@@ -31,6 +31,8 @@ def write_manifest(path: Path, *, provider: str, repeats: int, seed: int, scenar
         },
         "memory_applied": memory_applied,
     }
+    if pass_k is not None:
+        payload["strict_pass_k"] = pass_k
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     return path

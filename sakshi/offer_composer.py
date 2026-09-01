@@ -40,7 +40,13 @@ class OfferComposition:
     terms: OfferTerms
     buyer_summary: str
     uncertainties: tuple[str, ...]
+    clarifying_questions: tuple[str, ...]
     provenance: dict[str, Any]
+
+    @property
+    def requires_clarification(self) -> bool:
+        """An AI uncertainty can never be silently converted into buyer consent."""
+        return bool(self.uncertainties or self.clarifying_questions)
 
     def ledger_payload(self) -> dict[str, Any]:
         return {
@@ -51,6 +57,9 @@ class OfferComposition:
             "catalog_version": self.terms.catalog_version,
             "selected_skus": [line.sku for line in self.terms.lines],
             "uncertainties": list(self.uncertainties),
+            "clarifying_questions": list(self.clarifying_questions),
+            "requires_clarification": self.requires_clarification,
+            "ai_policy_version": "atlas.clarify-to-lock.v1",
             "catalog_validated": True,
             "consent_captured": False,
         }
@@ -65,7 +74,9 @@ class OfferComposer:
         "Never invent SKUs, prices, policy, delivery dates, discounts, consent, or merchant facts. "
         "Return JSON only with this exact shape: "
         "{\"lines\":[{\"sku\":\"catalog SKU\",\"qty\":positive integer}],"
-        "\"buyer_summary\":\"short buyer-visible summary\",\"uncertainties\":[\"string\"]}."
+        "\"buyer_summary\":\"short buyer-visible summary\",\"uncertainties\":[\"string\"],"
+        "\"clarifying_questions\":[\"question for buyer\"]}. "
+        "If anything material is ambiguous, list it as an uncertainty and ask one short clarification."
     )
 
     def __init__(self, provider: Provider) -> None:
@@ -150,6 +161,12 @@ class OfferComposer:
         if not isinstance(uncertainties_raw, list) or not all(isinstance(x, str) for x in uncertainties_raw):
             raise OfferCompositionError("AI uncertainties must be a list of strings")
         uncertainties = tuple(" ".join(x.split())[:160] for x in uncertainties_raw[:5] if x.strip())
+        questions_raw = parsed.get("clarifying_questions", [])
+        if not isinstance(questions_raw, list) or not all(isinstance(x, str) for x in questions_raw):
+            raise OfferCompositionError("AI clarifying_questions must be a list of strings")
+        clarifying_questions = tuple(" ".join(x.split())[:180] for x in questions_raw[:3] if x.strip())
+        if uncertainties and not clarifying_questions:
+            clarifying_questions = tuple(f"Please clarify: {item}" for item in uncertainties[:2])
         if delivery_by:
             try:
                 date.fromisoformat(delivery_by)
@@ -173,6 +190,7 @@ class OfferComposer:
             terms=terms,
             buyer_summary=summary,
             uncertainties=uncertainties,
+            clarifying_questions=clarifying_questions,
             provenance={
                 "provider": getattr(self.provider, "name", "unknown"),
                 "model": getattr(self.provider, "model", getattr(self.provider, "name", "unknown")),

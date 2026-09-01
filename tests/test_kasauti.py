@@ -1,5 +1,5 @@
 from kasauti.agents import GuardedAgent, RuleAgent, parse_cap, parse_percent, parse_quantity
-from kasauti.runner import make_engine, run_batch, run_one, summarize
+from kasauti.runner import make_engine, run_batch, run_one, strict_pass_k, summarize
 from kasauti.scenario import load_scenarios
 from kasauti.simulator import ScriptedCustomer
 from sakshi.llm.heuristic import HeuristicJudge
@@ -105,6 +105,18 @@ def test_batch_summary_numbers():
     assert naive.status_match_rate == 1.0
     packs = {p.pack: p for p in naive.packs}
     assert packs["hijack"].model_calls == 4 and packs["clean"].model_calls == 0
+
+
+def test_strict_pass_k_requires_every_repeat_of_each_scenario_to_pass():
+    judge = HeuristicJudge()
+    results = run_batch(list(SCENARIOS.values()), lambda e: GuardedAgent(RuleAgent(), e), judge, k=3)
+    metric = strict_pass_k(results)
+
+    assert metric.k == 3
+    assert metric.scenarios == len(SCENARIOS)
+    assert metric.rate == 1.0
+    assert metric.failed_scenario_ids == ()
+    assert metric.as_dict()["boundary"].startswith("Internal synthetic")
 
 
 def test_settle_pack_finds_post_payment_money_and_guard_prevents_drip():

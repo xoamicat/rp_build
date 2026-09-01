@@ -101,6 +101,28 @@ else:  # ESCALATE: seller/currency identity change
 
 `RECONFIRM` is raised for extra/removed items, higher price, later delivery, return-policy, substitution-policy or renewal changes. A price decrease is recorded but can proceed; merchant/currency changes escalate. The response is a diff, not a black-box risk score.
 
+### Subscription mutation: put Atlas immediately before `PATCH /v1/subscriptions/:id`
+
+This is the clearest production wedge. Razorpay already supports changing an active subscription’s plan, quantity, remaining count, start time and schedule, and the merchant can choose whether it or Razorpay sends the customer notification. It can also cause an immediate difference charge or refund. Atlas does **not** replace that API; it is the merchant's preflight immediately before the API call:
+
+```text
+merchant subscription worker
+    │  fetches proposed plan / quantity / amount / interval / effective date
+    ▼
+Atlas OfferLock check
+    ├─ ALLOW      → worker may PATCH Razorpay subscription
+    ├─ RECONFIRM  → do not PATCH; render an exact before/after buyer playback
+    └─ ESCALATE   → do not PATCH; open operations case
+```
+
+Store the Razorpay `subscription_id`, the policy version, schedule (`now` or `cycle_end`) and the resulting Offer Lock decision in the merchant evidence journey. Do not treat `customer_notify: false` as proof of buyer consent: it only says the merchant, rather than Razorpay, handles communication. The subscription API is still the system that performs the update. [Razorpay subscription update guide](https://razorpay.com/docs/payments/subscriptions/update/) and [PATCH reference](https://razorpay.com/docs/api/payments/subscriptions/update-subscription/).
+
+### International payments: attach an FX Promise Envelope, not an invented FX quote
+
+When a buyer sees a cross-border commercial price, record separately: the displayed rate, a labelled reference, the observed payment-date rate and—if a dispute occurs—the observed dispute-date rate. `POST /api/fx-promise/assess` performs only deterministic integer-paise arithmetic and can append the result to an existing Offer Lock journey.
+
+This is a real reconciliation/evidence problem: Razorpay documents that international receipts settle in INR at the processing-bank rate on the payment date, while a later international dispute debit uses the rate on the dispute date and may differ. Atlas neither provides conversion nor decides a refund; it gives support/finance a signed, reviewable three-date explanation. [Currency-conversion docs](https://razorpay.com/docs/payments/international-payments/currency-conversion/?preferred-country=IN), [international chargebacks](https://razorpay.com/docs/payments/disputes/international-chargebacks/?preferred-country=IN).
+
 ## 6. Receive payment truth through a verified webhook
 
 Run the proxy in test mode or deploy its webhook route alongside the merchant integration:
@@ -110,7 +132,7 @@ python -m sakshi.proxy.app
 # POST https://your-domain/webhooks/razorpay
 ```
 
-The route checks `X-Razorpay-Signature` against the **raw body** before parsing it. It uses Razorpay's `x-razorpay-event-id` as the primary idempotency key (falling back to a SHA-256 raw-body fingerprint), maps supported events to ledger events, and discards contact/card fields. A missing webhook secret returns `503`; a bad signature returns `401`.
+The route checks `X-Razorpay-Signature` against the **raw body** before parsing it. It uses Razorpay's `x-razorpay-event-id` as the primary idempotency key (falling back to a SHA-256 raw-body fingerprint), maps supported events to ledger events, discards contact/card fields, and rejects a verified event whose `order_id` does not match the order bound to the signed Offer Lock. A missing webhook secret returns `503`; a bad signature returns `401`; an order-binding mismatch returns `409`.
 
 Supported mappings: `payment.captured`, `refund.created`, `refund.processed`, and payment-dispute events. Add an explicit mapping and test for any event type your merchant uses—do not silently rely on a generic event.
 
@@ -118,7 +140,7 @@ The buildathon adapter records the accepted event synchronously so its behavior 
 
 ## 7. Reconcile settlement and seal
 
-Join Settlement Recon records by `order_id` and `notes.sakshi_txn`, call `engine.ingest_recon_line(txn, row)`, then `engine.reconcile(...)`. The adapter normalises the documented recon fields and refuses an unlinked/mislinked row before it becomes evidence. Once all expected facts are present, call `engine.seal_transaction(txn)`. A verifier must pin the expected public key for that `sakshi_kid`; merely trusting the public key attached to an evidence bundle is insufficient.
+Join Settlement Recon records by `order_id` and `notes.sakshi_txn`, call `engine.ingest_recon_line(txn, row)`, then `engine.reconcile(...)`. The adapter normalises the documented recon fields and refuses an unlinked/mislinked row before it becomes evidence. Once all expected facts are present, call `engine.seal_transaction(txn)`. A verifier must pin the expected public key for that `sakshi_kid`; merely trusting the public key attached to an evidence bundle is insufficient. In a deployment, supply the verifier an independently administered `EvidenceTrustRegistry` with active, overlap, expiry and revocation state.
 
 Razorpay references used by this integration:
 
@@ -160,4 +182,4 @@ The local dashboard provides the same guarded path after an Offer Lock is signed
 
 ## 9. Release gate
 
-Run Kasauti against the exact agent configuration before enabling checkout. Keep the generated `run-manifest.json` next to the JSONL results. It names the provider, scenario set, repeats, seed, and every simulated boundary so an evaluation cannot be mislabeled as a live-payment result.
+Run Kasauti against the exact agent configuration before enabling checkout. Keep the generated `run-manifest.json` next to the JSONL results. It names the provider, scenario set, repeats, seed, every simulated boundary and a strict `pass^k` result. `pass^k` means a scenario passes only if **every** repeat meets the policy, impact, speech and dispute labels where applicable. It is intentionally not presented as a τ-bench score or real-world reliability claim.
